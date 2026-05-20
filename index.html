@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบออมเงินนักเรียน</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Sarabun', sans-serif; }
+  :root {
+    --primary: #1a5276;
+    --primary-light: #2e86c1;
+    --accent: #f39c12;
+    --success: #27ae60;
+    --danger: #e74c3c;
+    --bg: #f0f4f8;
+    --sidebar-bg: #1a2942;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+  }
+  body { background: var(--bg); color: var(--text); }
+  body.dark {
+    --bg: #0f1923;
+    --card-bg: #1a2942;
+    --text: #e8edf5;
+    --sidebar-bg: #0d1520;
+  }
+  .sidebar { background: var(--sidebar-bg); min-height: 100vh; width: 260px; transition: all 0.3s; }
+  .sidebar.collapsed { width: 72px; }
+  .sidebar.collapsed .nav-label, .sidebar.collapsed .logo-text { display: none; }
+  .card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); }
+  .nav-item { color: #7f8c9a; border-radius: 10px; transition: all 0.2s; cursor: pointer; }
+  .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.08); color: #fff; }
+  .nav-item.active { background: var(--primary-light); color: #fff; }
+  .kpi-card { border-radius: 16px; padding: 1.25rem; color: #fff; }
+  .kpi-card.blue { background: linear-gradient(135deg, #1a5276, #2e86c1); }
+  .kpi-card.green { background: linear-gradient(135deg, #1e8449, #27ae60); }
+  .kpi-card.amber { background: linear-gradient(135deg, #b7770d, #f39c12); }
+  .kpi-card.red { background: linear-gradient(135deg, #922b21, #e74c3c); }
+  .btn-primary { background: var(--primary-light); color: #fff; border-radius: 10px; padding: 0.6rem 1.4rem; font-weight: 600; transition: all 0.2s; }
+  .btn-primary:hover { background: var(--primary); transform: translateY(-1px); }
+  .btn-success { background: var(--success); color: #fff; border-radius: 10px; padding: 0.6rem 1.4rem; font-weight: 600; transition: all 0.2s; }
+  .btn-danger { background: var(--danger); color: #fff; border-radius: 10px; padding: 0.6rem 1.4rem; font-weight: 600; transition: all 0.2s; }
+  .input-field { border: 1.5px solid #dde3ea; border-radius: 10px; padding: 0.6rem 1rem; width: 100%; background: var(--card-bg); color: var(--text); transition: border 0.2s; }
+  .input-field:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(46,134,193,0.15); }
+  .badge-deposit { background: #d5f5e3; color: #1e8449; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .badge-withdraw { background: #fce4ec; color: #c0392b; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .toast { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 280px; border-radius: 12px; padding: 1rem 1.2rem; color: #fff; font-weight: 500; animation: slideIn 0.3s ease; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.info { background: var(--primary-light); }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--card-bg); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f0f4f8; font-weight: 600; font-size: 13px; text-transform: uppercase; color: #7f8c9a; }
+  body.dark th { background: rgba(255,255,255,0.05); color: #7f8c9a; }
+  td, th { padding: 0.85rem 1rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.04); }
+  body.dark td { border-bottom-color: rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(46,134,193,0.04); }
+  .spinner { width: 40px; height: 40px; border: 4px solid #e3e7ed; border-top-color: var(--primary-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #c0c8d0; border-radius: 3px; }
+  .sidebar-toggle { display: none; }
+  @media (max-width: 768px) {
+    .sidebar { position: fixed; z-index: 100; transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; }
+    .main-content { margin-left: 0 !important; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; display: none; }
+    .overlay.show { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login Page -->
+<div id="loginPage" class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #1a2942 0%, #2e86c1 100%);">
+  <div class="w-full max-w-md px-4">
+    <div class="card p-8">
+      <div class="text-center mb-8">
+        <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--primary);">
+          <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.966 8.966 0 00-6 2.292m0-14.25v14.25"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold" style="color: var(--text);">ระบบออมเงินนักเรียน</h1>
+        <p class="text-sm mt-1" style="color: #7f8c9a;">กรุณาเข้าสู่ระบบเพื่อดำเนินการ</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" style="color: var(--text);">ชื่อผู้ใช้</label>
+          <input type="text" id="loginUser" class="input-field" placeholder="กรอกชื่อผู้ใช้" value="admin">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" style="color: var(--text);">รหัสผ่าน</label>
+          <input type="password" id="loginPass" class="input-field" placeholder="กรอกรหัสผ่าน" value="admin123">
+        </div>
+        <button onclick="doLogin()" class="btn-primary w-full text-center mt-2 py-3 text-base">เข้าสู่ระบบ</button>
+      </div>
+      <p class="text-center text-xs mt-4" style="color: #7f8c9a;">Demo: admin / admin123 หรือ teacher / teacher123</p>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" class="hidden flex">
+  <!-- Sidebar -->
+  <div class="sidebar fixed top-0 left-0 flex flex-col p-4 z-50 transition-all" id="sidebar" style="background: var(--sidebar-bg);">
+    <div class="flex items-center gap-3 px-2 py-3 mb-6">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: var(--primary-light);">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.966 8.966 0 00-6 2.292m0-14.25v14.25"/>
+        </svg>
+      </div>
+      <div class="nav-label">
+        <p class="text-white font-bold text-sm leading-tight">ระบบออมเงินนักเรียน</p>
+        <p class="text-xs" style="color: #7f8c9a;">โรงเรียนสาธิต</p>
+      </div>
+    </div>
+    <nav class="flex-1 space-y-1">
+      <div class="nav-item active flex items-center gap-3 px-3 py-2.5" onclick="showPage('dashboard')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="nav-label text-sm font-medium">แดชบอร์ด</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('students')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="nav-label text-sm font-medium">จัดการนักเรียน</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('deposit')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        <span class="nav-label text-sm font-medium">ฝากเงิน</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('withdraw')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+        <span class="nav-label text-sm font-medium">ถอนเงิน</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('transactions')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span class="nav-label text-sm font-medium">ประวัติรายการ</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('reports')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span class="nav-label text-sm font-medium">รายงาน PDF</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="showPage('settings')">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="nav-label text-sm font-medium">ข้อมูลพื้นฐาน</span>
+      </div>
+    </nav>
+    <div class="mt-auto space-y-2">
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="toggleDark()">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <span class="nav-label text-sm font-medium">โหมดกลางคืน</span>
+      </div>
+      <div class="nav-item flex items-center gap-3 px-3 py-2.5" onclick="doLogout()">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        <span class="nav-label text-sm font-medium text-red-400">ออกจากระบบ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay (mobile) -->
+  <div class="overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- Main Content -->
+  <div class="main-content flex-1 p-6" id="mainContent" style="margin-left: 260px; min-height: 100vh; transition: margin 0.3s;">
+    <!-- Topbar -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle p-2 rounded-xl" style="background: var(--card-bg);" onclick="toggleSidebar()">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div>
+          <h2 class="text-xl font-bold" id="pageTitle" style="color: var(--text);">แดชบอร์ด</h2>
+          <p class="text-xs" style="color: #7f8c9a;" id="currentDate"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="card px-4 py-2 flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: var(--primary-light);" id="userAvatar">A</div>
+          <div class="hidden sm:block">
+            <p class="text-sm font-medium" style="color: var(--text);" id="userName">ผู้ดูแล</p>
+            <p class="text-xs" style="color: #7f8c9a;" id="userRole">Admin</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="page-dashboard" class="page active">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="kpi-card blue">
+          <p class="text-sm opacity-80">นักเรียนทั้งหมด</p>
+          <p class="text-3xl font-bold mt-1" id="kpi-students">0</p>
+          <p class="text-xs opacity-60 mt-1">คน</p>
+        </div>
+        <div class="kpi-card green">
+          <p class="text-sm opacity-80">ยอดออมรวม</p>
+          <p class="text-2xl font-bold mt-1" id="kpi-total">฿0</p>
+          <p class="text-xs opacity-60 mt-1">บาท</p>
+        </div>
+        <div class="kpi-card amber">
+          <p class="text-sm opacity-80">ฝากวันนี้</p>
+          <p class="text-2xl font-bold mt-1" id="kpi-today">฿0</p>
+          <p class="text-xs opacity-60 mt-1">บาท</p>
+        </div>
+        <div class="kpi-card red">
+          <p class="text-sm opacity-80">ถอนวันนี้</p>
+          <p class="text-2xl font-bold mt-1" id="kpi-withdraw">฿0</p>
+          <p class="text-xs opacity-60 mt-1">บาท</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="card p-5">
+          <h3 class="font-semibold mb-4" style="color: var(--text);">กราฟการออมรายเดือน</h3>
+          <canvas id="monthlyChart" height="180"></canvas>
+        </div>
+        <div class="card p-5">
+          <h3 class="font-semibold mb-4" style="color: var(--text);">นักเรียนออมสูงสุด 5 อันดับ</h3>
+          <div id="topSaversList" class="space-y-3"></div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-semibold mb-4" style="color: var(--text);">รายการล่าสุด</h3>
+        <div class="overflow-x-auto">
+          <table>
+            <thead><tr>
+              <th>วันที่</th><th>นักเรียน</th><th>ประเภท</th><th>จำนวนเงิน</th><th>ยอดคงเหลือ</th>
+            </tr></thead>
+            <tbody id="recentTxTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Students Page -->
+    <div id="page-students" class="page">
+      <div class="card p-5 mb-4">
+        <div class="flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex gap-2 flex-1">
+            <input type="text" id="searchStudent" class="input-field" placeholder="ค้นหาชื่อ/รหัส/ห้องเรียน..." style="max-width:300px;" onkeyup="filterStudents()">
+            <select id="filterClass" class="input-field" style="max-width:150px;" onchange="filterStudents()">
+              <option value="">ทุกห้อง</option>
+              <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+              <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="openAddStudent()">+ เพิ่มนักเรียน</button>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="overflow-x-auto">
+          <table>
+            <thead><tr>
+              <th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th><th>ผู้ปกครอง</th><th>ยอดคงเหลือ</th><th>จัดการ</th>
+            </tr></thead>
+            <tbody id="studentsTable"></tbody>
+          </table>
+        </div>
+        <div class="flex justify-between items-center mt-4 text-sm" style="color: #7f8c9a;">
+          <span id="studentCount">แสดง 0 รายการ</span>
+          <div class="flex gap-2">
+            <button class="px-3 py-1 rounded-lg" style="background: var(--bg);" onclick="prevPage()">ก่อนหน้า</button>
+            <span id="pageInfo" class="px-3 py-1">หน้า 1</span>
+            <button class="px-3 py-1 rounded-lg" style="background: var(--bg);" onclick="nextPage()">ถัดไป</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deposit Page -->
+    <div id="page-deposit" class="page">
+      <div class="max-w-xl">
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-4" style="color: var(--text);">💰 บันทึกการฝากเงิน</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">ค้นหานักเรียน</label>
+              <input type="text" id="depositSearch" class="input-field" placeholder="พิมพ์รหัสหรือชื่อนักเรียน..." onkeyup="searchForDeposit()">
+              <div id="depositSearchResult" class="mt-2 space-y-1 max-h-48 overflow-y-auto"></div>
+            </div>
+            <div id="selectedStudentInfo" class="hidden p-4 rounded-xl" style="background: #e8f4fd;">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-semibold" id="selStudentName"></p>
+                  <p class="text-sm" style="color: #7f8c9a;" id="selStudentClass"></p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs" style="color: #7f8c9a;">ยอดคงเหลือ</p>
+                  <p class="text-xl font-bold" style="color: var(--primary);" id="selStudentBalance">฿0</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">จำนวนเงิน (บาท)</label>
+              <input type="number" id="depositAmount" class="input-field text-xl" placeholder="0.00" min="1">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">หมายเหตุ</label>
+              <input type="text" id="depositNote" class="input-field" placeholder="หมายเหตุ (ไม่บังคับ)">
+            </div>
+            <button class="btn-success w-full py-3 text-base" onclick="doDeposit()">✓ ยืนยันการฝากเงิน</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Withdraw Page -->
+    <div id="page-withdraw" class="page">
+      <div class="max-w-xl">
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-4" style="color: var(--text);">💸 บันทึกการถอนเงิน</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">ค้นหานักเรียน</label>
+              <input type="text" id="withdrawSearch" class="input-field" placeholder="พิมพ์รหัสหรือชื่อนักเรียน..." onkeyup="searchForWithdraw()">
+              <div id="withdrawSearchResult" class="mt-2 space-y-1 max-h-48 overflow-y-auto"></div>
+            </div>
+            <div id="selectedStudentInfoW" class="hidden p-4 rounded-xl" style="background: #fce4ec;">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-semibold" id="selStudentNameW"></p>
+                  <p class="text-sm" style="color: #7f8c9a;" id="selStudentClassW"></p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs" style="color: #7f8c9a;">ยอดคงเหลือ</p>
+                  <p class="text-xl font-bold" style="color: var(--danger);" id="selStudentBalanceW">฿0</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">จำนวนเงินที่ต้องการถอน (บาท)</label>
+              <input type="number" id="withdrawAmount" class="input-field text-xl" placeholder="0.00" min="1">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">หมายเหตุ</label>
+              <input type="text" id="withdrawNote" class="input-field" placeholder="เหตุผลการถอน...">
+            </div>
+            <button class="btn-danger w-full py-3 text-base" onclick="doWithdraw()">✓ ยืนยันการถอนเงิน</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions Page -->
+    <div id="page-transactions" class="page">
+      <div class="card p-5 mb-4">
+        <div class="flex flex-wrap gap-3 items-center">
+          <input type="text" id="txSearch" class="input-field" placeholder="ค้นหาชื่อนักเรียน..." style="max-width:240px;" onkeyup="filterTx()">
+          <select id="txTypeFilter" class="input-field" style="max-width:150px;" onchange="filterTx()">
+            <option value="">ทุกประเภท</option>
+            <option value="deposit">ฝากเงิน</option>
+            <option value="withdraw">ถอนเงิน</option>
+          </select>
+          <input type="date" id="txDateFilter" class="input-field" style="max-width:180px;" onchange="filterTx()">
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="overflow-x-auto">
+          <table>
+            <thead><tr>
+              <th>วันที่/เวลา</th><th>รหัสนักเรียน</th><th>ชื่อ</th><th>ประเภท</th><th>จำนวน</th><th>ยอดหลัง</th><th>หมายเหตุ</th>
+            </tr></thead>
+            <tbody id="txTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reports Page -->
+    <div id="page-reports" class="page">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" onclick="generateReport('student')">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style="background: #e8f4fd;">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#2e86c1" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <h3 class="font-semibold" style="color: var(--text);">รายงานรายคน</h3>
+          <p class="text-sm mt-1" style="color: #7f8c9a;">ประวัติการออมของนักเรียนรายบุคคล</p>
+        </div>
+        <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" onclick="generateReport('class')">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style="background: #e8f5e9;">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#27ae60" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="font-semibold" style="color: var(--text);">รายงานรายห้อง</h3>
+          <p class="text-sm mt-1" style="color: #7f8c9a;">สรุปยอดออมทั้งห้องเรียน</p>
+        </div>
+        <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" onclick="generateReport('monthly')">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style="background: #fff8e1;">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#f39c12" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <h3 class="font-semibold" style="color: var(--text);">รายงานรายเดือน</h3>
+          <p class="text-sm mt-1" style="color: #7f8c9a;">สรุปยอดออมทั้งโรงเรียนรายเดือน</p>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-semibold mb-4" style="color: var(--text);">ตัวเลือกรายงาน</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">เดือน</label>
+            <select id="reportMonth" class="input-field">
+              <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+              <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+              <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+              <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+              <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+              <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">ปี</label>
+            <input type="number" id="reportYear" class="input-field" value="2568">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">ห้องเรียน (ถ้าต้องการ)</label>
+            <select id="reportClass" class="input-field">
+              <option value="">ทั้งโรงเรียน</option>
+              <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+              <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button class="btn-primary" onclick="printReport()">🖨️ พิมพ์รายงาน PDF</button>
+          <button class="btn-primary" style="background: var(--success);" onclick="exportExcel()">📊 Export Excel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Settings Page -->
+    <div id="page-settings" class="page">
+      <div class="max-w-2xl">
+        <div class="card p-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#e8f4fd;">
+              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2e86c1" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-base" style="color: var(--text);">ข้อมูลพื้นฐานของโรงเรียน</h3>
+              <p class="text-xs mt-0.5" style="color:#7f8c9a;">ข้อมูลนี้จะปรากฏในรายงาน PDF ทุกฉบับ</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <!-- ชื่อโรงเรียน -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                🏫 ชื่อโรงเรียน
+              </label>
+              <input type="text" id="cfg_school" class="input-field" placeholder="เช่น โรงเรียนบ้านทุ่งนา">
+            </div>
+
+            <!-- ที่อยู่โรงเรียน -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                📍 ที่อยู่โรงเรียน
+              </label>
+              <input type="text" id="cfg_address" class="input-field" placeholder="เช่น ต.บ้านใหม่ อ.เมือง จ.เชียงใหม่">
+            </div>
+
+            <hr style="border-color: rgba(0,0,0,0.06); margin: 8px 0;">
+
+            <!-- ครูประจำชั้น -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                👩‍🏫 ชื่อครูผู้รับผิดชอบ
+              </label>
+              <input type="text" id="cfg_teacher" class="input-field" placeholder="เช่น นางสาวสมใจ รักเรียน">
+            </div>
+
+            <!-- ตำแหน่งครู -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                📋 ตำแหน่งครูผู้รับผิดชอบ
+              </label>
+              <input type="text" id="cfg_teacher_position" class="input-field" placeholder="เช่น ครูประจำชั้น ป.4/1">
+            </div>
+
+            <hr style="border-color: rgba(0,0,0,0.06); margin: 8px 0;">
+
+            <!-- ผู้อำนวยการ -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                🎓 ชื่อผู้อำนวยการโรงเรียน
+              </label>
+              <input type="text" id="cfg_director" class="input-field" placeholder="เช่น นายวิชาญ ศึกษาดี">
+            </div>
+
+            <!-- ตำแหน่งผู้อำนวยการ -->
+            <div>
+              <label class="block text-sm font-semibold mb-1" style="color:var(--text);">
+                📋 ตำแหน่งผู้อำนวยการ
+              </label>
+              <input type="text" id="cfg_director_position" class="input-field" placeholder="เช่น ผู้อำนวยการโรงเรียน">
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div class="mt-6 p-4 rounded-xl" style="background: #f0f4f8; border: 1px dashed #c5d0db;">
+            <p class="text-xs font-semibold mb-3" style="color:#7f8c9a;">👁 ตัวอย่างหัว PDF ที่จะแสดง</p>
+            <div class="text-center">
+              <p class="font-bold text-base" id="prev_school" style="color:#1a5276;">โรงเรียน...</p>
+              <p class="text-sm mt-0.5" id="prev_address" style="color:#555;"></p>
+              <p class="text-sm mt-2" style="color:#555;">รายงานการออมเงินนักเรียน</p>
+            </div>
+            <div class="flex justify-around mt-4 text-xs text-center" style="color:#555;">
+              <div>
+                <p class="font-semibold" id="prev_teacher"></p>
+                <p id="prev_teacher_pos" style="color:#888;"></p>
+                <p style="color:#aaa;">ครูผู้รับผิดชอบ</p>
+              </div>
+              <div>
+                <p class="font-semibold" id="prev_director"></p>
+                <p id="prev_director_pos" style="color:#888;"></p>
+                <p style="color:#aaa;">ผู้อำนวยการ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <button class="btn-primary flex-1 py-3 text-base" onclick="saveSettings()">💾 บันทึกข้อมูล</button>
+            <button class="flex-1 py-3 rounded-xl border text-sm font-medium" style="border-color:#dde3ea; color:var(--text);" onclick="resetSettings()">↺ รีเซ็ต</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+<div id="studentModal" class="modal-overlay hidden" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold" style="color: var(--text);" id="modalTitle">เพิ่มนักเรียน</h3>
+      <button onclick="closeStudentModal()" class="text-2xl leading-none" style="color: #7f8c9a;">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <input type="hidden" id="editStudentId">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium mb-1">รหัสนักเรียน *</label>
+          <input type="text" id="f_code" class="input-field" placeholder="เช่น 65001">
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1">ห้องเรียน *</label>
+          <select id="f_class" class="input-field">
+            <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+            <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+            <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium mb-1">ชื่อ *</label>
+          <input type="text" id="f_firstname" class="input-field" placeholder="ชื่อ">
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1">นามสกุล *</label>
+          <input type="text" id="f_lastname" class="input-field" placeholder="นามสกุล">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium mb-1">เพศ</label>
+          <select id="f_gender" class="input-field">
+            <option value="ชาย">ชาย</option>
+            <option value="หญิง">หญิง</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1">วันเกิด</label>
+          <input type="date" id="f_birthdate" class="input-field">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1">ชื่อผู้ปกครอง</label>
+        <input type="text" id="f_parent" class="input-field" placeholder="ชื่อผู้ปกครอง">
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1">เบอร์โทร</label>
+        <input type="tel" id="f_phone" class="input-field" placeholder="0XX-XXX-XXXX">
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button class="btn-primary flex-1" onclick="saveStudent()">บันทึก</button>
+        <button class="flex-1 py-2 rounded-xl border" style="border-color: #dde3ea; color: var(--text);" onclick="closeStudentModal()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====================================
+// CONFIG - เปลี่ยน URL เมื่อ Deploy
+// ====================================
+const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+const USE_DEMO = true; // เปลี่ยนเป็น false เมื่อเชื่อม Google Sheets จริง
+
+// ====================================
+// DEMO DATA (ใช้เมื่อ USE_DEMO = true)
+// ====================================
+let students = [
+  { id: 1, code: '65001', firstname: 'สมชาย', lastname: 'ใจดี', classroom: 'ป.4', gender: 'ชาย', parent: 'นาง มะลิ ใจดี', phone: '081-234-5678', balance: 1250, created_at: '2568-05-01' },
+  { id: 2, code: '65002', firstname: 'สมหญิง', lastname: 'รักเรียน', classroom: 'ป.4', gender: 'หญิง', parent: 'นาย สมพงษ์ รักเรียน', phone: '082-345-6789', balance: 2800, created_at: '2568-05-01' },
+  { id: 3, code: '65003', firstname: 'วิทยา', lastname: 'เก่งมาก', classroom: 'ป.5', gender: 'ชาย', parent: 'นาง วันดี เก่งมาก', phone: '083-456-7890', balance: 500, created_at: '2568-05-01' },
+  { id: 4, code: '65004', firstname: 'มาลี', lastname: 'สวยงาม', classroom: 'ป.5', gender: 'หญิง', parent: 'นาย ธนา สวยงาม', phone: '084-567-8901', balance: 4500, created_at: '2568-05-01' },
+  { id: 5, code: '65005', firstname: 'ธนา', lastname: 'มั่งมี', classroom: 'ป.6', gender: 'ชาย', parent: 'นาง ศรีไพร มั่งมี', phone: '085-678-9012', balance: 3200, created_at: '2568-05-01' },
+  { id: 6, code: '65006', firstname: 'นาตา', lastname: 'ขยันดี', classroom: 'ป.6', gender: 'หญิง', parent: 'นาย ไพรวัลย์ ขยันดี', phone: '086-789-0123', balance: 850, created_at: '2568-05-02' },
+];
+
+let transactions = [
+  { id: 1, studentId: 1, date: today(), type: 'deposit', amount: 100, balanceAfter: 1250, note: 'ฝากประจำ', createdBy: 'admin', timestamp: new Date().toISOString() },
+  { id: 2, studentId: 2, date: today(), type: 'deposit', amount: 200, balanceAfter: 2800, note: 'ฝากประจำ', createdBy: 'admin', timestamp: new Date().toISOString() },
+  { id: 3, studentId: 4, date: today(), type: 'withdraw', amount: 500, balanceAfter: 4500, note: 'ค่าหนังสือ', createdBy: 'admin', timestamp: new Date().toISOString() },
+  { id: 4, studentId: 3, date: today(), type: 'deposit', amount: 50, balanceAfter: 500, note: 'ฝากประจำ', createdBy: 'admin', timestamp: new Date().toISOString() },
+  { id: 5, studentId: 5, date: today(), type: 'deposit', amount: 300, balanceAfter: 3200, note: 'ฝากประจำ', createdBy: 'admin', timestamp: new Date().toISOString() },
+];
+
+let currentUser = null;
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let filteredStudents = [];
+let selectedDepositStudent = null;
+let selectedWithdrawStudent = null;
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ====================================
+// AUTH
+// ====================================
+function doLogin() {
+  const u = document.getElementById('loginUser').value;
+  const p = document.getElementById('loginPass').value;
+  // Demo login
+  if ((u === 'admin' && p === 'admin123') || (u === 'teacher' && p === 'teacher123')) {
+    currentUser = { username: u, role: u === 'admin' ? 'Admin' : 'Teacher', name: u === 'admin' ? 'ผู้ดูแลระบบ' : 'คุณครู' };
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    document.getElementById('mainApp').classList.add('flex');
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userRole').textContent = currentUser.role;
+    document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
+    initApp();
+    showToast('ยินดีต้อนรับ ' + currentUser.name, 'success');
+  } else {
+    showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
+  }
+}
+
+function doLogout() {
+  if (confirm('ต้องการออกจากระบบ?')) {
+    currentUser = null;
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('mainApp').classList.add('hidden');
+  }
+}
+
+// Enter key on login
+document.getElementById('loginPass').addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+
+// ====================================
+// APP INIT
+// ====================================
+function initApp() {
+  const now = new Date();
+  document.getElementById('currentDate').textContent = now.toLocaleDateString('th-TH', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('reportMonth').value = now.getMonth() + 1;
+  document.getElementById('reportYear').value = now.getFullYear() + 543;
+  // โหลดชื่อโรงเรียนใน Sidebar
+  const cfg = loadSettings();
+  document.querySelector('#sidebar .nav-label p:last-child').textContent = cfg.school || 'โรงเรียนสาธิต';
+  loadDashboard();
+  renderStudents();
+  renderTransactions();
+}
+
+// ====================================
+// DASHBOARD
+// ====================================
+function loadDashboard() {
+  const totalBalance = students.reduce((s, st) => s + st.balance, 0);
+  const todayTx = transactions.filter(t => t.date === today());
+  const todayDeposit = todayTx.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
+  const todayWithdraw = todayTx.filter(t => t.type === 'withdraw').reduce((s, t) => s + t.amount, 0);
+
+  document.getElementById('kpi-students').textContent = students.length.toLocaleString();
+  document.getElementById('kpi-total').textContent = '฿' + totalBalance.toLocaleString();
+  document.getElementById('kpi-today').textContent = '฿' + todayDeposit.toLocaleString();
+  document.getElementById('kpi-withdraw').textContent = '฿' + todayWithdraw.toLocaleString();
+
+  renderMonthlyChart();
+  renderTopSavers();
+  renderRecentTx();
+}
+
+function renderMonthlyChart() {
+  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const deposits = [1200, 1800, 2100, 1600, 2400, 2200, 1900, 2700, 2100, 0, 0, 0];
+  const withdrawals = [200, 300, 400, 250, 500, 350, 200, 600, 300, 0, 0, 0];
+  if (window._chart) window._chart.destroy();
+  window._chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'ฝาก', data: deposits, backgroundColor: 'rgba(39,174,96,0.8)', borderRadius: 6 },
+        { label: 'ถอน', data: withdrawals, backgroundColor: 'rgba(231,76,60,0.7)', borderRadius: 6 }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+function renderTopSavers() {
+  const sorted = [...students].sort((a, b) => b.balance - a.balance).slice(0, 5);
+  const max = sorted[0]?.balance || 1;
+  document.getElementById('topSaversList').innerHTML = sorted.map((s, i) => `
+    <div class="flex items-center gap-3">
+      <span class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold flex-shrink-0" style="background:${['#f39c12','#7f8c9a','#cd7f32','#2e86c1','#27ae60'][i]}">${i+1}</span>
+      <div class="flex-1">
+        <div class="flex justify-between text-sm mb-1">
+          <span class="font-medium">${s.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.'} ${s.firstname} ${s.lastname}</span>
+          <span class="font-semibold" style="color: var(--success);">฿${s.balance.toLocaleString()}</span>
+        </div>
+        <div class="h-1.5 rounded-full" style="background:#e0e7ef;">
+          <div class="h-1.5 rounded-full" style="background: var(--primary-light); width:${(s.balance/max*100).toFixed(0)}%"></div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecentTx() {
+  const sorted = [...transactions].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5);
+  document.getElementById('recentTxTable').innerHTML = sorted.map(t => {
+    const st = students.find(s => s.id === t.studentId);
+    return `<tr>
+      <td class="text-sm">${t.date}</td>
+      <td>${st ? (st.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.') + ' ' + st.firstname + ' ' + st.lastname : '-'}</td>
+      <td><span class="${t.type === 'deposit' ? 'badge-deposit' : 'badge-withdraw'}">${t.type === 'deposit' ? 'ฝาก' : 'ถอน'}</span></td>
+      <td class="font-semibold ${t.type === 'deposit' ? 'text-green-600' : 'text-red-500'}">฿${t.amount.toLocaleString()}</td>
+      <td>฿${t.balanceAfter.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ====================================
+// STUDENTS
+// ====================================
+function renderStudents() {
+  filteredStudents = filterStudentData();
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const paged = filteredStudents.slice(start, start + PAGE_SIZE);
+  const countEl = document.getElementById('studentCount');
+  const pageEl = document.getElementById('pageInfo');
+  const tableEl = document.getElementById('studentsTable');
+  if (!tableEl) return; // ยังไม่ได้อยู่หน้า students
+  if (countEl) countEl.textContent = `แสดง ${paged.length} จาก ${filteredStudents.length} รายการ`;
+  if (pageEl) pageEl.textContent = `หน้า ${currentPage} / ${Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE))}`;
+  tableEl.innerHTML = paged.length === 0
+    ? `<tr><td colspan="6" class="text-center py-8" style="color:#7f8c9a;">ยังไม่มีข้อมูลนักเรียน</td></tr>`
+    : paged.map(s => `
+    <tr>
+      <td class="font-mono text-sm">${s.code}</td>
+      <td><span class="font-medium">${s.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.'} ${s.firstname} ${s.lastname}</span></td>
+      <td><span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:#e8f4fd; color: var(--primary);">${s.classroom}</span></td>
+      <td class="text-sm" style="color: #7f8c9a;">${s.parent || '-'}</td>
+      <td class="font-semibold" style="color: var(--success);">฿${s.balance.toLocaleString()}</td>
+      <td>
+        <div class="flex gap-2">
+          <button class="text-xs px-3 py-1 rounded-lg" style="background:#e8f4fd; color: var(--primary);" onclick="openEditStudent(${s.id})">แก้ไข</button>
+          <button class="text-xs px-3 py-1 rounded-lg" style="background:#fce4ec; color: var(--danger);" onclick="deleteStudent(${s.id})">ลบ</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterStudentData() {
+  const q = document.getElementById('searchStudent')?.value.toLowerCase() || '';
+  const cls = document.getElementById('filterClass')?.value || '';
+  return students.filter(s =>
+    (!q || `${s.firstname} ${s.lastname} ${s.code}`.toLowerCase().includes(q)) &&
+    (!cls || s.classroom === cls)
+  );
+}
+
+function filterStudents() { currentPage = 1; renderStudents(); }
+function prevPage() { if (currentPage > 1) { currentPage--; renderStudents(); } }
+function nextPage() { if (currentPage < Math.ceil(filteredStudents.length / PAGE_SIZE)) { currentPage++; renderStudents(); } }
+
+function openAddStudent() {
+  document.getElementById('modalTitle').textContent = 'เพิ่มนักเรียน';
+  ['editStudentId','f_code','f_firstname','f_lastname','f_parent','f_phone','f_birthdate'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_gender').value = 'ชาย';
+  document.getElementById('f_class').value = 'ป.1';
+  document.getElementById('studentModal').classList.remove('hidden');
+}
+
+function openEditStudent(id) {
+  const s = students.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('modalTitle').textContent = 'แก้ไขข้อมูลนักเรียน';
+  document.getElementById('editStudentId').value = id;
+  document.getElementById('f_code').value = s.code;
+  document.getElementById('f_firstname').value = s.firstname;
+  document.getElementById('f_lastname').value = s.lastname;
+  document.getElementById('f_class').value = s.classroom;
+  document.getElementById('f_gender').value = s.gender;
+  document.getElementById('f_parent').value = s.parent || '';
+  document.getElementById('f_phone').value = s.phone || '';
+  document.getElementById('studentModal').classList.remove('hidden');
+}
+
+function saveStudent() {
+  const id = document.getElementById('editStudentId').value;
+  const code = document.getElementById('f_code').value.trim();
+  const firstname = document.getElementById('f_firstname').value.trim();
+  const lastname = document.getElementById('f_lastname').value.trim();
+  if (!code || !firstname || !lastname) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
+  if (!id && students.find(s => s.code === code)) { showToast('รหัสนักเรียนซ้ำ', 'error'); return; }
+  const data = {
+    code, firstname, lastname,
+    classroom: document.getElementById('f_class').value,
+    gender: document.getElementById('f_gender').value,
+    parent: document.getElementById('f_parent').value,
+    phone: document.getElementById('f_phone').value,
+    birthdate: document.getElementById('f_birthdate').value,
+  };
+  if (id) {
+    const idx = students.findIndex(s => s.id === parseInt(id));
+    if (idx >= 0) Object.assign(students[idx], data);
+    showToast('แก้ไขข้อมูลสำเร็จ', 'success');
+  } else {
+    students.push({ id: Date.now(), balance: 0, created_at: today(), ...data });
+    showToast('เพิ่มนักเรียนสำเร็จ', 'success');
+  }
+  closeStudentModal();
+  currentPage = 1;
+  // รอให้ modal ปิดก่อน แล้วค่อย render
+  setTimeout(() => {
+    showPage('students');
+    renderStudents();
+    loadDashboard();
+  }, 50);
+}
+
+function deleteStudent(id) {
+  const s = students.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm(`ต้องการลบ ${s.firstname} ${s.lastname}?`)) return;
+  students = students.filter(x => x.id !== id);
+  currentPage = 1;
+  renderStudents();
+  loadDashboard();
+  showToast('ลบนักเรียนสำเร็จ', 'success');
+}
+
+function closeStudentModal() { document.getElementById('studentModal').classList.add('hidden'); }
+function closeModal(e) { if (e.target === e.currentTarget) closeStudentModal(); }
+
+// ====================================
+// DEPOSIT
+// ====================================
+function searchForDeposit() {
+  const q = document.getElementById('depositSearch').value.toLowerCase();
+  const res = document.getElementById('depositSearchResult');
+  if (!q) { res.innerHTML = ''; return; }
+  const matches = students.filter(s => `${s.firstname} ${s.lastname} ${s.code}`.toLowerCase().includes(q)).slice(0, 5);
+  res.innerHTML = matches.map(s => `
+    <div class="p-2 rounded-lg cursor-pointer hover:bg-blue-50 flex justify-between items-center" style="border: 1px solid #dde3ea;" onclick="selectDepositStudent(${s.id})">
+      <span>${s.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.'} ${s.firstname} ${s.lastname} (${s.code})</span>
+      <span class="text-sm font-semibold" style="color: var(--success);">฿${s.balance.toLocaleString()}</span>
+    </div>
+  `).join('') || '<p class="text-sm text-center py-2" style="color:#7f8c9a;">ไม่พบนักเรียน</p>';
+}
+
+function selectDepositStudent(id) {
+  selectedDepositStudent = students.find(s => s.id === id);
+  if (!selectedDepositStudent) return;
+  const prefix = selectedDepositStudent.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.';
+  document.getElementById('depositSearch').value = `${prefix} ${selectedDepositStudent.firstname} ${selectedDepositStudent.lastname}`;
+  document.getElementById('depositSearchResult').innerHTML = '';
+  document.getElementById('selStudentName').textContent = `${prefix} ${selectedDepositStudent.firstname} ${selectedDepositStudent.lastname}`;
+  document.getElementById('selStudentClass').textContent = `ห้อง ${selectedDepositStudent.classroom} | รหัส ${selectedDepositStudent.code}`;
+  document.getElementById('selStudentBalance').textContent = `฿${selectedDepositStudent.balance.toLocaleString()}`;
+  document.getElementById('selectedStudentInfo').classList.remove('hidden');
+}
+
+function doDeposit() {
+  if (!selectedDepositStudent) { showToast('กรุณาเลือกนักเรียน', 'error'); return; }
+  const amount = parseFloat(document.getElementById('depositAmount').value);
+  if (!amount || amount <= 0) { showToast('กรุณากรอกจำนวนเงินที่ถูกต้อง', 'error'); return; }
+  const note = document.getElementById('depositNote').value;
+  const st = students.find(s => s.id === selectedDepositStudent.id);
+  st.balance += amount;
+  const tx = { id: Date.now(), studentId: st.id, date: today(), type: 'deposit', amount, balanceAfter: st.balance, note, createdBy: currentUser.username, timestamp: new Date().toISOString() };
+  transactions.unshift(tx);
+  document.getElementById('selStudentBalance').textContent = `฿${st.balance.toLocaleString()}`;
+  document.getElementById('depositAmount').value = '';
+  document.getElementById('depositNote').value = '';
+  showToast(`ฝากเงิน ฿${amount.toLocaleString()} สำเร็จ`, 'success');
+  loadDashboard();
+  renderTransactions();
+}
+
+// ====================================
+// WITHDRAW
+// ====================================
+function searchForWithdraw() {
+  const q = document.getElementById('withdrawSearch').value.toLowerCase();
+  const res = document.getElementById('withdrawSearchResult');
+  if (!q) { res.innerHTML = ''; return; }
+  const matches = students.filter(s => `${s.firstname} ${s.lastname} ${s.code}`.toLowerCase().includes(q)).slice(0, 5);
+  res.innerHTML = matches.map(s => `
+    <div class="p-2 rounded-lg cursor-pointer hover:bg-red-50 flex justify-between items-center" style="border: 1px solid #dde3ea;" onclick="selectWithdrawStudent(${s.id})">
+      <span>${s.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.'} ${s.firstname} ${s.lastname} (${s.code})</span>
+      <span class="text-sm font-semibold" style="color: var(--success);">฿${s.balance.toLocaleString()}</span>
+    </div>
+  `).join('') || '<p class="text-sm text-center py-2" style="color:#7f8c9a;">ไม่พบนักเรียน</p>';
+}
+
+function selectWithdrawStudent(id) {
+  selectedWithdrawStudent = students.find(s => s.id === id);
+  if (!selectedWithdrawStudent) return;
+  const prefix = selectedWithdrawStudent.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.';
+  document.getElementById('withdrawSearch').value = `${prefix} ${selectedWithdrawStudent.firstname} ${selectedWithdrawStudent.lastname}`;
+  document.getElementById('withdrawSearchResult').innerHTML = '';
+  document.getElementById('selStudentNameW').textContent = `${prefix} ${selectedWithdrawStudent.firstname} ${selectedWithdrawStudent.lastname}`;
+  document.getElementById('selStudentClassW').textContent = `ห้อง ${selectedWithdrawStudent.classroom} | รหัส ${selectedWithdrawStudent.code}`;
+  document.getElementById('selStudentBalanceW').textContent = `฿${selectedWithdrawStudent.balance.toLocaleString()}`;
+  document.getElementById('selectedStudentInfoW').classList.remove('hidden');
+}
+  document.getElementById('withdrawSearchResult').innerHTML = '';
+  document.getElementById('selStudentNameW').textContent = `${selectedWithdrawStudent.firstname} ${selectedWithdrawStudent.lastname}`;
+  document.getElementById('selStudentClassW').textContent = `ห้อง ${selectedWithdrawStudent.classroom} | รหัส ${selectedWithdrawStudent.code}`;
+  document.getElementById('selStudentBalanceW').textContent = `฿${selectedWithdrawStudent.balance.toLocaleString()}`;
+  document.getElementById('selectedStudentInfoW').classList.remove('hidden');
+}
+
+function doWithdraw() {
+  if (!selectedWithdrawStudent) { showToast('กรุณาเลือกนักเรียน', 'error'); return; }
+  const amount = parseFloat(document.getElementById('withdrawAmount').value);
+  if (!amount || amount <= 0) { showToast('กรุณากรอกจำนวนเงินที่ถูกต้อง', 'error'); return; }
+  const st = students.find(s => s.id === selectedWithdrawStudent.id);
+  if (amount > st.balance) { showToast(`ยอดเงินไม่พอ (มี ฿${st.balance.toLocaleString()})`, 'error'); return; }
+  const note = document.getElementById('withdrawNote').value;
+  st.balance -= amount;
+  const tx = { id: Date.now(), studentId: st.id, date: today(), type: 'withdraw', amount, balanceAfter: st.balance, note, createdBy: currentUser.username, timestamp: new Date().toISOString() };
+  transactions.unshift(tx);
+  document.getElementById('selStudentBalanceW').textContent = `฿${st.balance.toLocaleString()}`;
+  document.getElementById('withdrawAmount').value = '';
+  document.getElementById('withdrawNote').value = '';
+  showToast(`ถอนเงิน ฿${amount.toLocaleString()} สำเร็จ`, 'success');
+  loadDashboard();
+  renderTransactions();
+}
+
+// ====================================
+// TRANSACTIONS
+// ====================================
+function renderTransactions() {
+  const q = document.getElementById('txSearch')?.value?.toLowerCase() || '';
+  const type = document.getElementById('txTypeFilter')?.value || '';
+  const date = document.getElementById('txDateFilter')?.value || '';
+  let filtered = transactions.filter(t => {
+    const st = students.find(s => s.id === t.studentId);
+    const name = st ? `${st.firstname} ${st.lastname}` : '';
+    return (!q || name.toLowerCase().includes(q)) && (!type || t.type === type) && (!date || t.date === date);
+  });
+  document.getElementById('txTable').innerHTML = filtered.map(t => {
+    const st = students.find(s => s.id === t.studentId);
+    const prefix = st ? (st.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.') : '';
+    return `<tr>
+      <td class="text-sm">${t.date}<br><span class="text-xs" style="color:#7f8c9a;">${new Date(t.timestamp).toLocaleTimeString('th-TH')}</span></td>
+      <td class="font-mono text-sm">${st?.code || '-'}</td>
+      <td>${st ? prefix + ' ' + st.firstname + ' ' + st.lastname : '-'}</td>
+      <td><span class="${t.type === 'deposit' ? 'badge-deposit' : 'badge-withdraw'}">${t.type === 'deposit' ? 'ฝาก' : 'ถอน'}</span></td>
+      <td class="font-semibold ${t.type === 'deposit' ? 'text-green-600' : 'text-red-500'}">฿${t.amount.toLocaleString()}</td>
+      <td>฿${t.balanceAfter.toLocaleString()}</td>
+      <td class="text-sm" style="color:#7f8c9a;">${t.note || '-'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="text-center py-8" style="color:#7f8c9a;">ไม่พบรายการ</td></tr>';
+}
+
+function filterTx() { renderTransactions(); }
+
+// ====================================
+// REPORTS / PDF
+// ====================================
+function generateReport(type) {
+  showToast('กำลังสร้างรายงาน...', 'info');
+}
+
+function printReport() {
+  const month = parseInt(document.getElementById('reportMonth').value);
+  const year = parseInt(document.getElementById('reportYear').value);
+  const cls = document.getElementById('reportClass').value;
+  const monthNames = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+  const cfg = getSettings();
+  const schoolName = cfg.school || 'โรงเรียนสาธิต';
+  const schoolAddress = cfg.address || '';
+  const teacherName = cfg.teacher || '................................................';
+  const teacherPos = cfg.teacher_position || 'ครูผู้รับผิดชอบ';
+  const directorName = cfg.director || '................................................';
+  const directorPos = cfg.director_position || 'ผู้อำนวยการโรงเรียน';
+  const yearCE = year > 2500 ? year - 543 : year;
+  const monthPrefix = `${yearCE}-${String(month).padStart(2,'0')}`;
+
+  // กรองนักเรียนตามห้อง
+  const filtSt = (cls ? students.filter(s => s.classroom === cls) : students)
+    .sort((a,b) => a.classroom.localeCompare(b.classroom,'th') || a.firstname.localeCompare(b.firstname,'th'));
+
+  // กรองรายการของเดือนนั้น
+  const monthTx = transactions.filter(t => t.date && t.date.startsWith(monthPrefix));
+
+  // หาวันที่มีรายการในเดือนนั้น (เรียงจากน้อยไปมาก)
+  const daysSet = new Set(monthTx.map(t => t.date));
+  const days = [...daysSet].sort();
+
+  // สร้าง header วันที่
+  const dayHeaders = days.map(d => {
+    const dt = new Date(d);
+    return `<th style="min-width:52px;font-size:11px;">${dt.getDate()}<br><span style="font-weight:400;font-size:10px;">${['อา','จ','อ','พ','พฤ','ศ','ส'][dt.getDay()]}</span></th>`;
+  }).join('');
+
+  // สร้างแถวนักเรียน
+  let totalDepAll = 0, totalWdAll = 0;
+  const rows = filtSt.map((s, i) => {
+    const prefix = s.gender === 'หญิง' ? 'ด.ญ.' : 'ด.ช.';
+    const stTx = monthTx.filter(t => t.studentId === s.id);
+    const totalDep = stTx.filter(t => t.type === 'deposit').reduce((a,t) => a + t.amount, 0);
+    const totalWd  = stTx.filter(t => t.type === 'withdraw').reduce((a,t) => a + t.amount, 0);
+    totalDepAll += totalDep;
+    totalWdAll  += totalWd;
+
+    // เซลล์แต่ละวัน
+    const dayCells = days.map(d => {
+      const dayTx = stTx.filter(t => t.date === d);
+      if (!dayTx.length) return `<td style="text-align:center;color:#bbb;font-size:11px;">-</td>`;
+      const dep = dayTx.filter(t => t.type === 'deposit').reduce((a,t) => a + t.amount, 0);
+      const wd  = dayTx.filter(t => t.type === 'withdraw').reduce((a,t) => a + t.amount, 0);
+      let cell = '';
+      if (dep > 0) cell += `<span style="color:#1a7a3f;font-size:11px;display:block;">+${dep.toLocaleString()}</span>`;
+      if (wd  > 0) cell += `<span style="color:#c0392b;font-size:11px;display:block;">-${wd.toLocaleString()}</span>`;
+      return `<td style="text-align:center;padding:4px 3px;">${cell}</td>`;
+    }).join('');
+
+    const bg = i % 2 === 1 ? 'background:#f7fafc;' : '';
+    return `<tr style="${bg}">
+      <td style="text-align:center;font-size:12px;">${i+1}</td>
+      <td style="text-align:center;font-size:11px;font-family:monospace;">${s.code}</td>
+      <td style="font-size:12px;white-space:nowrap;">${prefix} ${s.firstname} ${s.lastname}</td>
+      <td style="text-align:center;font-size:12px;">${s.classroom}</td>
+      ${dayCells}
+      <td style="text-align:right;font-size:12px;color:#1a7a3f;font-weight:600;">฿${totalDep.toLocaleString()}</td>
+      <td style="text-align:right;font-size:12px;color:#c0392b;font-weight:600;">฿${totalWd.toLocaleString()}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700;">฿${s.balance.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  // แถวรวม
+  const totalBalAll = filtSt.reduce((a,s) => a + (s.balance || 0), 0);
+  const totalDayCells = days.map(d => {
+    const dep = monthTx.filter(t => t.date === d && t.type === 'deposit').reduce((a,t) => a + t.amount, 0);
+    const wd  = monthTx.filter(t => t.date === d && t.type === 'withdraw').reduce((a,t) => a + t.amount, 0);
+    let cell = '';
+    if (dep > 0) cell += `<span style="color:#1a7a3f;font-size:11px;display:block;">+${dep.toLocaleString()}</span>`;
+    if (wd  > 0) cell += `<span style="color:#c0392b;font-size:11px;display:block;">-${wd.toLocaleString()}</span>`;
+    return `<td style="text-align:center;padding:4px 3px;background:#e8f4fd;">${cell || '-'}</td>`;
+  }).join('');
+
+  const noDataMsg = days.length === 0
+    ? `<tr><td colspan="8" style="text-align:center;padding:24px;color:#888;">ไม่มีรายการในเดือนนี้</td></tr>`
+    : '';
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html lang="th"><head>
+    <meta charset="UTF-8">
+    <title>รายงานออมเงิน ${monthNames[month]} ${year}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { font-family: 'Sarabun', sans-serif; box-sizing: border-box; }
+      body { margin: 0; padding: 20px 24px; color: #1a1a2e; font-size: 13px; }
+      h1 { text-align:center; font-size:20px; margin:0; color:#1a5276; }
+      h2 { text-align:center; font-size:14px; margin:4px 0 4px; color:#444; font-weight:600; }
+      .meta { text-align:center; font-size:12px; color:#777; margin-bottom:14px; }
+      .summary { display:flex; gap:12px; margin-bottom:14px; }
+      .sum-card { flex:1; border:1px solid #dde3ea; border-radius:8px; padding:8px 12px; text-align:center; }
+      .sum-card .lbl { font-size:11px; color:#888; }
+      .sum-card .val { font-size:16px; font-weight:700; margin-top:2px; }
+      .wrap { overflow-x:auto; }
+      table { width:100%; border-collapse:collapse; font-size:12px; }
+      th { background:#1a5276; color:#fff; padding:7px 5px; text-align:center; border:1px solid #155; white-space:nowrap; }
+      td { padding:5px; border:1px solid #d0dae6; vertical-align:middle; }
+      .total-row td { background:#dbeafe; font-weight:700; border-top:2px solid #1a5276; }
+      .sig-area { display:flex; justify-content:space-around; margin-top:44px; }
+      .sig { text-align:center; width:200px; }
+      .sig-line { border-top:1px solid #555; padding-top:6px; margin-top:38px; font-size:12px; line-height:1.8; }
+      .legend { font-size:11px; color:#555; margin-bottom:10px; }
+      .legend span { margin-right:14px; }
+      @media print { button { display:none!important; } body { padding:10px 14px; } }
+    </style>
+  </head><body>
+    <button onclick="window.print()" style="margin-bottom:14px;padding:7px 18px;background:#1a5276;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ พิมพ์ / บันทึก PDF</button>
+    <h1>สมุดบันทึกการออมเงินนักเรียน</h1>
+    <h2>${schoolName}${cls ? ' | ห้อง ' + cls : ''}</h2>
+    ${schoolAddress ? `<div class="meta" style="margin-top:2px;">${schoolAddress}</div>` : ''}
+    <div class="meta">ประจำเดือน <strong>${monthNames[month]} พ.ศ. ${year}</strong> &nbsp;|&nbsp; วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</div>
+
+    <div class="summary">
+      <div class="sum-card"><div class="lbl">นักเรียนทั้งหมด</div><div class="val">${filtSt.length} คน</div></div>
+      <div class="sum-card"><div class="lbl">ยอดฝากรวมเดือนนี้</div><div class="val" style="color:#1a7a3f;">฿${totalDepAll.toLocaleString()}</div></div>
+      <div class="sum-card"><div class="lbl">ยอดถอนรวมเดือนนี้</div><div class="val" style="color:#c0392b;">฿${totalWdAll.toLocaleString()}</div></div>
+      <div class="sum-card"><div class="lbl">ยอดคงเหลือรวม</div><div class="val" style="color:#1a5276;">฿${totalBalAll.toLocaleString()}</div></div>
+    </div>
+
+    <div class="legend">
+      <span style="color:#1a7a3f;">● สีเขียว = ฝาก</span>
+      <span style="color:#c0392b;">● สีแดง = ถอน</span>
+      <span style="color:#888;">- = ไม่มีรายการวันนั้น</span>
+    </div>
+
+    <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:32px;">ที่</th>
+          <th rowspan="2" style="width:56px;">รหัส</th>
+          <th rowspan="2" style="min-width:130px;">ชื่อ-นามสกุล</th>
+          <th rowspan="2" style="width:42px;">ห้อง</th>
+          ${days.length > 0 ? `<th colspan="${days.length}">รายการแต่ละวัน (บาท)</th>` : ''}
+          <th rowspan="2" style="width:72px;">ฝากรวม</th>
+          <th rowspan="2" style="width:72px;">ถอนรวม</th>
+          <th rowspan="2" style="width:80px;">คงเหลือ</th>
+        </tr>
+        ${days.length > 0 ? `<tr>${dayHeaders}</tr>` : ''}
+      </thead>
+      <tbody>
+        ${noDataMsg}
+        ${rows}
+        <tr class="total-row">
+          <td colspan="4" style="text-align:right;">รวมทั้งหมด</td>
+          ${totalDayCells}
+          <td style="text-align:right;color:#1a7a3f;">฿${totalDepAll.toLocaleString()}</td>
+          <td style="text-align:right;color:#c0392b;">฿${totalWdAll.toLocaleString()}</td>
+          <td style="text-align:right;">฿${totalBalAll.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="sig-area">
+      <div class="sig"><div class="sig-line">ลงชื่อ ครูผู้รับผิดชอบ<br>(.......................................)<br>${teacherName}<br>${teacherPos}<br>วันที่ ...... / ...... / ......</div></div>
+      <div class="sig"><div class="sig-line">ลงชื่อ ผู้อำนวยการ<br>(.......................................)<br>${directorName}<br>${directorPos}<br>วันที่ ...... / ...... / ......</div></div>
+    </div>
+  </body></html>`);
+  w.document.close();
+}
+
+function exportExcel() {
+  showToast('ฟีเจอร์นี้ต้องเชื่อม Google Apps Script', 'info');
+}
+
+// ====================================
+// SETTINGS - ข้อมูลพื้นฐาน
+// ====================================
+const SETTINGS_KEY = 'school_settings';
+
+function loadSettings() {
+  const saved = localStorage.getItem(SETTINGS_KEY);
+  const defaults = {
+    school: 'โรงเรียนสาธิต',
+    address: '',
+    teacher: '',
+    teacher_position: 'ครูประจำชั้น',
+    auditor: '',
+    auditor_position: '',
+    director: '',
+    director_position: 'ผู้อำนวยการโรงเรียน'
+  };
+  return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+}
+
+function getSettings() {
+  return loadSettings();
+}
+
+function initSettingsPage() {
+  const cfg = loadSettings();
+  document.getElementById('cfg_school').value = cfg.school || '';
+  document.getElementById('cfg_address').value = cfg.address || '';
+  document.getElementById('cfg_teacher').value = cfg.teacher || '';
+  document.getElementById('cfg_teacher_position').value = cfg.teacher_position || '';
+  document.getElementById('cfg_director').value = cfg.director || '';
+  document.getElementById('cfg_director_position').value = cfg.director_position || '';
+  updatePreview();
+
+  // Live preview ขณะพิมพ์
+  ['cfg_school','cfg_address','cfg_teacher','cfg_teacher_position','cfg_director','cfg_director_position']
+    .forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
+}
+
+function updatePreview() {
+  const v = id => document.getElementById(id)?.value || '';
+  document.getElementById('prev_school').textContent = v('cfg_school') || 'ชื่อโรงเรียน...';
+  document.getElementById('prev_address').textContent = v('cfg_address');
+  document.getElementById('prev_teacher').textContent = v('cfg_teacher') || '-';
+  document.getElementById('prev_teacher_pos').textContent = v('cfg_teacher_position');
+  document.getElementById('prev_director').textContent = v('cfg_director') || '-';
+  document.getElementById('prev_director_pos').textContent = v('cfg_director_position');
+}
+
+function saveSettings() {
+  const cfg = {
+    school: document.getElementById('cfg_school').value.trim(),
+    address: document.getElementById('cfg_address').value.trim(),
+    teacher: document.getElementById('cfg_teacher').value.trim(),
+    teacher_position: document.getElementById('cfg_teacher_position').value.trim(),
+    director: document.getElementById('cfg_director').value.trim(),
+    director_position: document.getElementById('cfg_director_position').value.trim(),
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(cfg));
+  // อัพเดตชื่อโรงเรียนใน Sidebar
+  document.querySelector('#sidebar .nav-label p:last-child').textContent = cfg.school || 'โรงเรียนสาธิต';
+  showToast('บันทึกข้อมูลสำเร็จ', 'success');
+}
+
+function resetSettings() {
+  if (!confirm('รีเซ็ตข้อมูลทั้งหมด?')) return;
+  localStorage.removeItem(SETTINGS_KEY);
+  initSettingsPage();
+  showToast('รีเซ็ตแล้ว', 'info');
+}
+
+// ====================================
+// UI HELPERS
+// ====================================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const titles = { dashboard:'แดชบอร์ด', students:'จัดการนักเรียน', deposit:'ฝากเงิน', withdraw:'ถอนเงิน', transactions:'ประวัติรายการ', reports:'รายงาน PDF', settings:'ข้อมูลพื้นฐาน' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  const navMap = { dashboard:0, students:1, deposit:2, withdraw:3, transactions:4, reports:5, settings:6 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navMap[page] !== undefined) navItems[navMap[page]].classList.add('active');
+  if (page === 'settings') initSettingsPage();
+  closeSidebar();
+}
+
+function showToast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<div class="flex items-center gap-2">${type==='success'?'✓':type==='error'?'✗':'ℹ'} ${msg}</div>`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function toggleDark() { document.body.classList.toggle('dark'); }
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebarOverlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('show');
+}
+
+function closeSidebar() {
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+  }
+}
+
+// Init date
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('th-TH', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+</script>
+</body>
+</html>
