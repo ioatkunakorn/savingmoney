@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>💰 ระบบฝาก-ถอนเงิน ห้องเรียน</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Sarabun Font -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- jsPDF + autotable for PDF download -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+
+<!-- SheetJS for Excel download -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Sarabun', 'sans-serif'] },
+        colors: {
+          brand: {
+            50:  '#eef4ff',
+            100: '#dbe6ff',
+            200: '#b8ccff',
+            300: '#8aa9ff',
+            400: '#5b81ff',
+            500: '#3a5dff',
+            600: '#2640e8',
+            700: '#1f31bb',
+            800: '#1d2b94',
+            900: '#1c2978'
+          }
+        },
+        boxShadow: {
+          'soft': '0 10px 30px -10px rgba(38, 64, 232, 0.25)',
+          'glow': '0 0 0 4px rgba(58, 93, 255, 0.15)'
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { font-family: 'Sarabun', sans-serif; }
+  .bg-mesh {
+    background-color:#f5f7ff;
+    background-image:
+      radial-gradient(at 12% 15%, rgba(99,102,241,0.18) 0px, transparent 50%),
+      radial-gradient(at 88% 10%, rgba(14,165,233,0.18) 0px, transparent 50%),
+      radial-gradient(at 50% 90%, rgba(236,72,153,0.12) 0px, transparent 50%);
+  }
+  .btn-grad {
+    background-image: linear-gradient(135deg,#3a5dff 0%,#6d44ff 50%,#a13bff 100%);
+  }
+  .btn-grad-green { background-image: linear-gradient(135deg,#10b981 0%,#22d3ee 100%); }
+  .btn-grad-red   { background-image: linear-gradient(135deg,#ef4444 0%,#f97316 100%); }
+  .btn-grad-amber { background-image: linear-gradient(135deg,#f59e0b 0%,#ef4444 100%); }
+  .btn-grad-cyan  { background-image: linear-gradient(135deg,#06b6d4 0%,#3b82f6 100%); }
+  .card { @apply bg-white rounded-2xl shadow-soft border border-slate-100; }
+  .pill {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.25rem .7rem; border-radius:999px;
+    font-size:.75rem; font-weight:600;
+  }
+  .dot { width:.65rem; height:.65rem; border-radius:999px; display:inline-block; }
+  .dot-green { background:#10b981; box-shadow:0 0 0 4px rgba(16,185,129,.2); animation:pulse 2s infinite; }
+  .dot-red   { background:#ef4444; box-shadow:0 0 0 4px rgba(239,68,68,.2); }
+  .dot-amber { background:#f59e0b; box-shadow:0 0 0 4px rgba(245,158,11,.2); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100% {opacity:1} 50%{opacity:.5} }
+  .scroll-area { max-height: 420px; overflow-y:auto; }
+  .scroll-area::-webkit-scrollbar { width:8px; height:8px; }
+  .scroll-area::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
+  .scroll-area::-webkit-scrollbar-track { background:transparent; }
+  .input {
+    @apply w-full px-3 py-2 rounded-xl border border-slate-200 bg-white
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400
+           transition placeholder:text-slate-400;
+  }
+  .label { @apply text-xs font-semibold text-slate-600 mb-1 block; }
+  .section-title { @apply text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2; }
+  .badge-deposit { @apply bg-emerald-100 text-emerald-700 border border-emerald-200; }
+  .badge-withdraw{ @apply bg-rose-100 text-rose-700 border border-rose-200; }
+  table.tbl thead th { @apply text-xs font-semibold text-slate-600 uppercase bg-slate-50 px-3 py-2 text-left; }
+  table.tbl tbody td { @apply px-3 py-2 text-sm text-slate-700 border-t border-slate-100; }
+  table.tbl tbody tr:hover { background:#f8fafc; }
+
+  /* hide admin sections by default */
+  .admin-only { display: none; }
+  body.is-admin .admin-only { display: block; }
+</style>
+</head>
+
+<body class="bg-mesh min-h-screen text-slate-800">
+
+<!-- ===== HEADER ===== -->
+<header class="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl btn-grad text-white flex items-center justify-center text-xl shadow-soft">💰</div>
+      <div>
+        <h1 class="text-lg sm:text-xl font-extrabold leading-tight">ระบบฝาก-ถอนเงิน ห้องเรียน</h1>
+        <p class="text-xs text-slate-500">บันทึก / ดึงข้อมูล ผ่าน Google Sheet</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-wrap">
+      <div id="connStatus" class="pill bg-amber-50 text-amber-700 border border-amber-200">
+        <span class="dot dot-amber"></span><span id="connText">กำลังโหลด...</span>
+      </div>
+      <button id="adminLoginBtn" class="px-3 py-2 rounded-xl text-sm font-semibold text-white btn-grad shadow-soft hover:brightness-110">
+        🔐 เข้าระบบแอดมิน
+      </button>
+      <button id="adminLogoutBtn" class="hidden px-3 py-2 rounded-xl text-sm font-semibold text-white btn-grad-red shadow-soft hover:brightness-110">
+        🚪 ออกจากระบบ
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- ===== 1. QUICK ACTIONS ===== -->
+  <section class="card p-5">
+    <h2 class="section-title mb-4">⚡ การดำเนินการด่วน</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <button id="btnTestConn" class="btn-grad-cyan text-white font-semibold py-3 rounded-xl shadow-soft hover:brightness-110">
+        🔗 ทดสอบการเชื่อมต่อ
+      </button>
+      <button id="btnLoadData" class="btn-grad text-white font-semibold py-3 rounded-xl shadow-soft hover:brightness-110">
+        📥 โหลดข้อมูลจาก Google Sheet
+      </button>
+      <button id="btnExportPDF" class="btn-grad-amber text-white font-semibold py-3 rounded-xl shadow-soft hover:brightness-110">
+        📄 ดาวน์โหลด PDF
+      </button>
+      <button id="btnExportXLSX" class="btn-grad-green text-white font-semibold py-3 rounded-xl shadow-soft hover:brightness-110">
+        📊 ดาวน์โหลด Excel/CSV
+      </button>
+    </div>
+
+    <!-- ===== CONFIG ===== -->
+    <div class="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200">
+      <p class="text-xs font-semibold text-slate-600 mb-2">⚙️ ตั้งค่า Google Apps Script URL <span class="text-rose-500">(จำเป็น)</span></p>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/XXXXX/exec" class="input flex-1" />
+        <button id="btnSaveUrl" class="px-4 py-2 rounded-xl bg-slate-800 text-white font-semibold hover:bg-slate-700">
+          💾 บันทึก URL
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">URL นี้จะถูกเก็บไว้ในเบราว์เซอร์ของคุณ (memory) เพื่อเชื่อมต่อ Google Sheet</p>
+    </div>
+  </section>
+
+  <!-- ===== 2. จัดการนักเรียน (ADMIN ONLY) ===== -->
+  <section class="admin-only card p-5">
+    <h2 class="section-title mb-4">👥 จัดการนักเรียน <span class="text-xs font-normal text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">เฉพาะแอดมิน</span></h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div class="lg:col-span-2">
+        <label class="label">ชื่อ-นามสกุล</label>
+        <input id="sName" type="text" class="input" placeholder="เช่น สมชาย ใจดี" />
+      </div>
+      <div>
+        <label class="label">รหัสนักเรียน</label>
+        <input id="sCode" type="text" class="input" placeholder="เช่น 12345" />
+      </div>
+      <div>
+        <label class="label">ชั้น</label>
+        <input id="sClass" type="text" class="input" placeholder="เช่น ม.4/1" />
+      </div>
+      <div>
+        <label class="label">เลขที่</label>
+        <input id="sNo" type="number" min="1" class="input" placeholder="เช่น 12" />
+      </div>
+    </div>
+    <div class="mt-4 flex justify-end">
+      <button id="btnAddStudent" class="btn-grad text-white font-semibold px-5 py-2.5 rounded-xl shadow-soft hover:brightness-110">
+        ➕ เพิ่มนักเรียน
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== 3. รายชื่อนักเรียน ===== -->
+  <section class="card p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <h2 class="section-title">📋 รายชื่อนักเรียนทั้งหมด</h2>
+      <div class="text-sm text-slate-600">
+        แสดง <span id="shownCount" class="font-bold text-brand-600">0</span> /
+        <span id="totalCount" class="font-bold">0</span> คน
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <input id="studentSearch" type="text" class="input" placeholder="🔍 ค้นหา: ชื่อ-นามสกุล / รหัสนักเรียน / ชั้น / เลขที่" />
+    </div>
+
+    <div class="scroll-area rounded-xl border border-slate-200">
+      <table class="tbl w-full">
+        <thead class="sticky top-0">
+          <tr>
+            <th>เลขที่</th>
+            <th>รหัส</th>
+            <th>ชื่อ-นามสกุล</th>
+            <th>ชั้น</th>
+            <th class="text-right">ยอดคงเหลือ</th>
+            <th class="text-center">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="studentTable">
+          <tr><td colspan="6" class="text-center text-slate-400 py-8">ยังไม่มีข้อมูล กดปุ่ม "📥 โหลดข้อมูลจาก Google Sheet"</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-3 flex justify-center">
+      <button id="btnShowMore" class="hidden px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">
+        ⬇️ แสดงเพิ่มเติม
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== 4. บันทึกรายการฝาก-ถอน (ADMIN ONLY) ===== -->
+  <section class="admin-only card p-5">
+    <h2 class="section-title mb-4">💵 บันทึกรายการฝาก-ถอน <span class="text-xs font-normal text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">เฉพาะแอดมิน</span></h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div class="lg:col-span-2">
+        <label class="label">เลือกนักเรียน</label>
+        <select id="txStudent" class="input">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">ยอดเงินปัจจุบัน</label>
+        <div id="txCurrentBalance" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold text-brand-700">0.00 บาท</div>
+      </div>
+      <div>
+        <label class="label">วันที่ทำรายการ</label>
+        <input id="txDate" type="date" class="input" />
+      </div>
+      <div>
+        <label class="label">ประเภท</label>
+        <select id="txType" class="input">
+          <option value="ฝาก">ฝาก</option>
+          <option value="ถอน">ถอน</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">จำนวนเงิน (บาท)</label>
+        <input id="txAmount" type="number" min="0" step="0.01" class="input" placeholder="0.00" />
+      </div>
+      <div class="md:col-span-2 lg:col-span-3">
+        <label class="label">หมายเหตุ</label>
+        <input id="txNote" type="text" class="input" placeholder="ระบุหมายเหตุ (ถ้ามี)" />
+      </div>
+    </div>
+    <div class="mt-4 flex justify-end">
+      <button id="btnSaveTx" class="btn-grad-green text-white font-semibold px-6 py-2.5 rounded-xl shadow-soft hover:brightness-110">
+        💾 บันทึกรายการ
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== 5. ค้นหาและประวัติรายการ ===== -->
+  <section class="card p-5">
+    <h2 class="section-title mb-4">🔎 ค้นหาและประวัติรายการ</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div>
+        <label class="label">ชื่อนักเรียน</label>
+        <input id="qName" type="text" class="input" placeholder="พิมพ์ชื่อ..." />
+      </div>
+      <div>
+        <label class="label">วันที่เริ่ม</label>
+        <input id="qFrom" type="date" class="input" />
+      </div>
+      <div>
+        <label class="label">วันที่สิ้นสุด</label>
+        <input id="qTo" type="date" class="input" />
+      </div>
+      <div>
+        <label class="label">ประเภท</label>
+        <select id="qType" class="input">
+          <option value="">ทั้งหมด</option>
+          <option value="ฝาก">ฝาก</option>
+          <option value="ถอน">ถอน</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button id="btnSearch" class="btn-grad text-white font-semibold px-4 py-2 rounded-xl shadow-soft hover:brightness-110">🔍 ค้นหา</button>
+      <button id="btnClearSearch" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 py-2 rounded-xl">🗑️ ล้างการค้นหา</button>
+      <button id="btnShowAll" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-xl">📋 แสดงทั้งหมด</button>
+    </div>
+
+    <div class="scroll-area mt-4 rounded-xl border border-slate-200">
+      <table class="tbl w-full">
+        <thead class="sticky top-0">
+          <tr>
+            <th>วันที่</th>
+            <th>เวลา</th>
+            <th>ชื่อ</th>
+            <th>ประเภท</th>
+            <th class="text-right">จำนวน</th>
+            <th class="text-right">ยอดคงเหลือ</th>
+            <th>หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody id="txTable">
+          <tr><td colspan="7" class="text-center text-slate-400 py-8">ยังไม่มีรายการ</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 6. สรุปยอดเงิน ===== -->
+  <section class="card p-5">
+    <h2 class="section-title mb-4">📊 สรุปยอดเงิน</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-2xl p-5 text-white btn-grad-green shadow-soft">
+        <p class="text-sm opacity-90">ยอดรวมเงินฝาก</p>
+        <p id="sumDeposit" class="text-3xl font-extrabold mt-1">0.00 ฿</p>
+      </div>
+      <div class="rounded-2xl p-5 text-white btn-grad-red shadow-soft">
+        <p class="text-sm opacity-90">ยอดรวมเงินถอน</p>
+        <p id="sumWithdraw" class="text-3xl font-extrabold mt-1">0.00 ฿</p>
+      </div>
+      <div class="rounded-2xl p-5 text-white btn-grad shadow-soft">
+        <p class="text-sm opacity-90">ยอดรวมทั้งหมด (ฝาก - ถอน)</p>
+        <p id="sumTotal" class="text-3xl font-extrabold mt-1">0.00 ฿</p>
+      </div>
+    </div>
+
+    <h3 class="mt-6 mb-2 font-bold text-slate-700">🏆 จัดอันดับยอดเงินคงเหลือ (สูง → ต่ำ)</h3>
+    <div class="scroll-area rounded-xl border border-slate-200">
+      <table class="tbl w-full">
+        <thead class="sticky top-0">
+          <tr>
+            <th>อันดับ</th>
+            <th>ชื่อ-นามสกุล</th>
+            <th>ชั้น</th>
+            <th class="text-right">ยอดคงเหลือ</th>
+          </tr>
+        </thead>
+        <tbody id="rankTable">
+          <tr><td colspan="4" class="text-center text-slate-400 py-8">ยังไม่มีข้อมูล</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 7. กราฟ ===== -->
+  <section class="card p-5">
+    <h2 class="section-title mb-4">📈 กราฟเปรียบเทียบยอดเงินคงเหลือ</h2>
+    <div style="position:relative; height:380px;">
+      <canvas id="balanceChart"></canvas>
+    </div>
+  </section>
+
+  <!-- ===== 8. สถานะการซิงค์ ===== -->
+  <section class="card p-5">
+    <h2 class="section-title mb-4">🔄 สถานะการซิงค์</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+        <p class="text-slate-500">สถานะข้อมูล</p>
+        <p id="syncFresh" class="font-bold text-slate-800 mt-1">—</p>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+        <p class="text-slate-500">สถานะ Google Sheet</p>
+        <p id="syncSheet" class="font-bold text-slate-800 mt-1">—</p>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+        <p class="text-slate-500">เวลาซิงค์ล่าสุด</p>
+        <p id="syncTime" class="font-bold text-slate-800 mt-1">—</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="mt-10 py-6 border-t border-slate-200 bg-white/60">
+  <p class="text-center text-xs text-slate-500">© 2026 ระบบฝาก-ถอนเงิน | ผู้พัฒนา นายคุณาร นาสารีย์</p>
+</footer>
+
+<script>
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const STATE = {
+  gasUrl: '',
+  isAdmin: false,
+  students: [],     // {code, name, class, no, balance}
+  transactions: [], // {id, date, time, code, name, type, amount, balance, note}
+  shownLimit: 20,
+  lastSync: null,
+  chart: null
+};
+
+/* =========================================================================
+   UTILS
+   ========================================================================= */
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+const todayISO = () => new Date().toISOString().slice(0,10);
+
+function setConnStatus(state, text){
+  const wrap = $('connStatus');
+  wrap.className = 'pill';
+  if(state==='online'){ wrap.classList.add('bg-emerald-50','text-emerald-700','border','border-emerald-200'); wrap.innerHTML = `<span class="dot dot-green"></span><span id="connText">${text||'ออนไลน์'}</span>`; }
+  else if(state==='offline'){ wrap.classList.add('bg-rose-50','text-rose-700','border','border-rose-200'); wrap.innerHTML = `<span class="dot dot-red"></span><span id="connText">${text||'ออฟไลน์'}</span>`; }
+  else { wrap.classList.add('bg-amber-50','text-amber-700','border','border-amber-200'); wrap.innerHTML = `<span class="dot dot-amber"></span><span id="connText">${text||'กำลังโหลด...'}</span>`; }
+}
+
+function toast(icon, title){
+  Swal.fire({ toast:true, position:'top-end', icon, title, showConfirmButton:false, timer:2200, timerProgressBar:true });
+}
+
+/* =========================================================================
+   GAS API
+   ========================================================================= */
+async function callGAS(action, payload={}){
+  if(!STATE.gasUrl){
+    throw new Error('ยังไม่ได้ตั้งค่า Google Apps Script URL');
+  }
+  // ใช้ text/plain เพื่อหลีกเลี่ยง CORS preflight
+  const res = await fetch(STATE.gasUrl, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload })
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'Unknown error');
+  return data.data;
+}
+
+/* =========================================================================
+   CONNECTION
+   ========================================================================= */
+async function testConnection(){
+  if(!STATE.gasUrl){
+    Swal.fire({ icon:'warning', title:'ยังไม่ได้ตั้งค่า URL', text:'กรุณาวาง Google Apps Script URL ก่อน' });
+    return;
+  }
+  setConnStatus('loading','กำลังทดสอบ...');
+  try{
+    const info = await callGAS('ping');
+    setConnStatus('online','ออนไลน์');
+    $('syncSheet').textContent = '✅ เชื่อมต่อสำเร็จ';
+    Swal.fire({ icon:'success', title:'เชื่อมต่อสำเร็จ', html:`Sheet ID: <code>${info.sheetId||'-'}</code>` , timer:2500, showConfirmButton:false });
+  }catch(e){
+    setConnStatus('offline','ออฟไลน์');
+    $('syncSheet').textContent = '❌ ' + e.message;
+    Swal.fire({ icon:'error', title:'เชื่อมต่อล้มเหลว', text:e.message });
+  }
+}
+
+/* =========================================================================
+   LOAD DATA
+   ========================================================================= */
+async function loadData(silent=false){
+  if(!STATE.gasUrl){
+    if(!silent) Swal.fire({ icon:'warning', title:'ยังไม่ได้ตั้งค่า URL' });
+    return;
+  }
+  setConnStatus('loading','กำลังโหลด...');
+  try{
+    const data = await callGAS('getAll');
+    STATE.students = data.students || [];
+    STATE.transactions = data.transactions || [];
+    recomputeBalances();
+    STATE.lastSync = new Date();
+    renderAll();
+    setConnStatus('online','ออนไลน์');
+    $('syncFresh').textContent = '✅ เป็นปัจจุบัน';
+    $('syncSheet').textContent = '✅ เชื่อมต่อ Sheet สำเร็จ';
+    $('syncTime').textContent = STATE.lastSync.toLocaleString('th-TH');
+    if(!silent) toast('success','โหลดข้อมูลสำเร็จ');
+  }catch(e){
+    setConnStatus('offline','ออฟไลน์');
+    $('syncFresh').textContent = '⚠️ ไม่ได้ซิงค์';
+    $('syncSheet').textContent = '❌ ' + e.message;
+    if(!silent) Swal.fire({ icon:'error', title:'โหลดข้อมูลล้มเหลว', text:e.message });
+  }
+}
+
+function recomputeBalances(){
+  // คำนวณยอดคงเหลือของแต่ละนักเรียนจาก transactions
+  const map = {};
+  STATE.students.forEach(s => map[s.code] = 0);
+  // เรียงตามวันที่+เวลา
+  const sorted = [...STATE.transactions].sort((a,b)=>{
+    const ka = (a.date||'')+' '+(a.time||'');
+    const kb = (b.date||'')+' '+(b.time||'');
+    return ka.localeCompare(kb);
+  });
+  sorted.forEach(t => {
+    if(!(t.code in map)) map[t.code] = 0;
+    const amt = Number(t.amount)||0;
+    if(t.type === 'ฝาก') map[t.code] += amt;
+    else if(t.type === 'ถอน') map[t.code] -= amt;
+    t.balance = map[t.code];
+  });
+  STATE.students.forEach(s => s.balance = map[s.code] || 0);
+}
+
+/* =========================================================================
+   RENDER
+   ========================================================================= */
+function renderAll(){
+  renderStudents();
+  renderTxStudentSelect();
+  renderTransactions(STATE.transactions);
+  renderSummary();
+  renderRanking();
+  renderChart();
+}
+
+function getFilteredStudents(){
+  const q = ($('studentSearch').value || '').trim().toLowerCase();
+  let list = [...STATE.students].sort((a,b)=> (Number(a.no)||0) - (Number(b.no)||0));
+  if(q){
+    list = list.filter(s =>
+      (s.name||'').toLowerCase().includes(q) ||
+      String(s.code||'').toLowerCase().includes(q) ||
+      (s.class||'').toLowerCase().includes(q) ||
+      String(s.no||'').includes(q)
+    );
+  }
+  return list;
+}
+
+function renderStudents(){
+  const list = getFilteredStudents();
+  const limit = Math.min(STATE.shownLimit, 100, list.length);
+  const shown = list.slice(0, limit);
+  const tbody = $('studentTable');
+
+  $('totalCount').textContent = list.length;
+  $('shownCount').textContent = shown.length;
+
+  if(shown.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-400 py-8">ไม่พบนักเรียน</td></tr>`;
+  } else {
+    tbody.innerHTML = shown.map(s => {
+      const bal = Number(s.balance)||0;
+      const balCls = bal>=0 ? 'text-emerald-600' : 'text-rose-600';
+      return `
+        <tr>
+          <td>${s.no||''}</td>
+          <td><code class="text-xs bg-slate-100 px-2 py-0.5 rounded">${s.code||''}</code></td>
+          <td class="font-medium">${s.name||''}</td>
+          <td>${s.class||''}</td>
+          <td class="text-right font-bold ${balCls}">${fmt(bal)} ฿</td>
+          <td class="text-center whitespace-nowrap">
+            <button class="px-2 py-1 rounded-lg bg-brand-50 text-brand-700 text-xs font-semibold hover:bg-brand-100" onclick="showHistory('${s.code}')">📊 ประวัติ</button>
+            ${STATE.isAdmin ? `<button class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-semibold hover:bg-rose-100" onclick="deleteStudent('${s.code}')">🗑️ ลบ</button>` : ''}
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  // show more button
+  const more = $('btnShowMore');
+  if(list.length > STATE.shownLimit && STATE.shownLimit < 100){
+    more.classList.remove('hidden');
+  } else {
+    more.classList.add('hidden');
+  }
+}
+
+function renderTxStudentSelect(){
+  const sel = $('txStudent');
+  const cur = sel.value;
+  const opts = ['<option value="">-- เลือก --</option>']
+    .concat(
+      [...STATE.students]
+        .sort((a,b)=> (Number(a.no)||0) - (Number(b.no)||0))
+        .map(s => `<option value="${s.code}">เลขที่ ${s.no||'-'} | ${s.name} (${s.class||''})</option>`)
+    );
+  sel.innerHTML = opts.join('');
+  if(cur) sel.value = cur;
+  updateCurrentBalance();
+}
+
+function updateCurrentBalance(){
+  const code = $('txStudent').value;
+  const s = STATE.students.find(x=>x.code===code);
+  const bal = s ? Number(s.balance)||0 : 0;
+  $('txCurrentBalance').textContent = fmt(bal) + ' บาท';
+  $('txCurrentBalance').className = 'px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-bold ' + (bal>=0?'text-emerald-600':'text-rose-600');
+}
+
+function renderTransactions(list){
+  const tbody = $('txTable');
+  if(!list || list.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-8">ยังไม่มีรายการ</td></tr>`;
+    return;
+  }
+  // เรียงล่าสุดก่อน
+  const sorted = [...list].sort((a,b)=>{
+    const ka = (a.date||'')+' '+(a.time||'');
+    const kb = (b.date||'')+' '+(b.time||'');
+    return kb.localeCompare(ka);
+  });
+  tbody.innerHTML = sorted.map(t => {
+    const isDep = t.type==='ฝาก';
+    return `
+      <tr>
+        <td>${t.date||''}</td>
+        <td>${t.time||''}</td>
+        <td class="font-medium">${t.name||''}</td>
+        <td><span class="pill ${isDep?'badge-deposit':'badge-withdraw'}">${isDep?'⬆️ ฝาก':'⬇️ ถอน'}</span></td>
+        <td class="text-right font-bold ${isDep?'text-emerald-600':'text-rose-600'}">${isDep?'+':'-'}${fmt(t.amount)}</td>
+        <td class="text-right font-semibold">${fmt(t.balance)}</td>
+        <td class="text-slate-500">${t.note||''}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderSummary(){
+  let dep = 0, wd = 0;
+  STATE.transactions.forEach(t => {
+    const a = Number(t.amount)||0;
+    if(t.type==='ฝาก') dep += a;
+    else if(t.type==='ถอน') wd += a;
+  });
+  $('sumDeposit').textContent = fmt(dep) + ' ฿';
+  $('sumWithdraw').textContent = fmt(wd) + ' ฿';
+  const total = dep - wd;
+  const el = $('sumTotal');
+  el.textContent = fmt(total) + ' ฿';
+}
+
+function renderRanking(){
+  const sorted = [...STATE.students].sort((a,b)=> (Number(b.balance)||0) - (Number(a.balance)||0));
+  const tbody = $('rankTable');
+  if(sorted.length===0){
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-slate-400 py-8">ยังไม่มีข้อมูล</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map((s,i)=>{
+    const bal = Number(s.balance)||0;
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    return `
+      <tr>
+        <td class="font-bold">${medal}</td>
+        <td class="font-medium">${s.name||''}</td>
+        <td>${s.class||''}</td>
+        <td class="text-right font-bold ${bal>=0?'text-emerald-600':'text-rose-600'}">${fmt(bal)} ฿</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderChart(){
+  const ctx = document.getElementById('balanceChart');
+  if(!ctx) return;
+  const data = [...STATE.students].sort((a,b)=> (Number(b.balance)||0) - (Number(a.balance)||0));
+  const labels = data.map(s => s.name || s.code);
+  const values = data.map(s => Number(s.balance)||0);
+  const palette = [
+    '#3a5dff','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899',
+    '#84cc16','#f97316','#0ea5e9','#a855f7','#14b8a6','#eab308','#f43f5e'
+  ];
+  const colors = values.map((v,i)=> palette[i % palette.length]);
+
+  if(STATE.chart) STATE.chart.destroy();
+  STATE.chart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'ยอดคงเหลือ (บาท)', data:values, backgroundColor:colors, borderRadius:8 }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> ' ' + fmt(c.parsed.y) + ' ฿' }}},
+      scales:{
+        y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:'#e2e8f0' }},
+        x:{ ticks:{ maxRotation:60, minRotation:30, font:{size:10}}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+/* =========================================================================
+   ADMIN LOGIN
+   ========================================================================= */
+async function adminLogin(){
+  const { value: formValues } = await Swal.fire({
+    title: '🔐 เข้าระบบแอดมิน',
+    html: `
+      <input id="swal-u" class="swal2-input" placeholder="Username" />
+      <input id="swal-p" type="password" class="swal2-input" placeholder="Password" />
+    `,
+    focusConfirm:false,
+    confirmButtonText:'เข้าระบบ',
+    cancelButtonText:'ยกเลิก',
+    showCancelButton:true,
+    confirmButtonColor:'#3a5dff',
+    preConfirm: () => {
+      return {
+        user: document.getElementById('swal-u').value,
+        pass: document.getElementById('swal-p').value
+      };
+    }
+  });
+  if(!formValues) return;
+  if(formValues.user==='admin' && formValues.pass==='1234'){
+    STATE.isAdmin = true;
+    document.body.classList.add('is-admin');
+    $('adminLoginBtn').classList.add('hidden');
+    $('adminLogoutBtn').classList.remove('hidden');
+    renderStudents();
+    Swal.fire({ icon:'success', title:'เข้าสู่ระบบสำเร็จ', timer:1500, showConfirmButton:false });
+  } else {
+    Swal.fire({ icon:'error', title:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+  }
+}
+
+function adminLogout(){
+  STATE.isAdmin = false;
+  document.body.classList.remove('is-admin');
+  $('adminLoginBtn').classList.remove('hidden');
+  $('adminLogoutBtn').classList.add('hidden');
+  renderStudents();
+  toast('info','ออกจากระบบแอดมินแล้ว');
+}
+
+/* =========================================================================
+   ADD / DELETE STUDENT
+   ========================================================================= */
+async function addStudent(){
+  if(!STATE.isAdmin){ Swal.fire({icon:'warning',title:'เฉพาะแอดมิน'}); return; }
+  const name = $('sName').value.trim();
+  const code = $('sCode').value.trim();
+  const cls  = $('sClass').value.trim();
+  const no   = $('sNo').value.trim();
+  if(!name||!code||!cls||!no){ Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ'}); return; }
+  if(STATE.students.some(s=>String(s.code)===String(code))){
+    Swal.fire({icon:'error',title:'รหัสนักเรียนซ้ำ',text:`มีรหัส ${code} อยู่แล้ว`}); return;
+  }
+  try{
+    Swal.fire({title:'กำลังบันทึก...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('addStudent', { code, name, class:cls, no: Number(no) });
+    $('sName').value=''; $('sCode').value=''; $('sClass').value=''; $('sNo').value='';
+    await loadData(true);
+    Swal.fire({icon:'success',title:'เพิ่มนักเรียนสำเร็จ',timer:1500,showConfirmButton:false});
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+async function deleteStudent(code){
+  if(!STATE.isAdmin){ Swal.fire({icon:'warning',title:'เฉพาะแอดมิน'}); return; }
+  const s = STATE.students.find(x=>x.code===code);
+  if(!s) return;
+  const res = await Swal.fire({
+    icon:'warning',
+    title:'ยืนยันการลบ?',
+    html:`ลบนักเรียน <b>${s.name}</b> (${code})<br/><span class="text-rose-600">รายการของนักเรียนคนนี้จะถูกลบทั้งหมด</span>`,
+    showCancelButton:true, confirmButtonText:'ลบ', cancelButtonText:'ยกเลิก',
+    confirmButtonColor:'#ef4444'
+  });
+  if(!res.isConfirmed) return;
+  try{
+    Swal.fire({title:'กำลังลบ...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('deleteStudent', { code });
+    await loadData(true);
+    Swal.fire({icon:'success',title:'ลบสำเร็จ',timer:1500,showConfirmButton:false});
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+/* =========================================================================
+   SAVE TRANSACTION
+   ========================================================================= */
+async function saveTransaction(){
+  if(!STATE.isAdmin){ Swal.fire({icon:'warning',title:'เฉพาะแอดมิน'}); return; }
+  const code = $('txStudent').value;
+  const date = $('txDate').value || todayISO();
+  const type = $('txType').value;
+  const amount = Number($('txAmount').value);
+  const note = $('txNote').value.trim();
+
+  if(!code){ Swal.fire({icon:'warning',title:'กรุณาเลือกนักเรียน'}); return; }
+  if(!amount || amount<=0){ Swal.fire({icon:'warning',title:'จำนวนเงินไม่ถูกต้อง'}); return; }
+
+  const s = STATE.students.find(x=>x.code===code);
+  if(type==='ถอน' && Number(s.balance) < amount){
+    const res = await Swal.fire({
+      icon:'warning', title:'ยอดเงินไม่พอ',
+      html:`ยอดคงเหลือปัจจุบัน: <b>${fmt(s.balance)} ฿</b><br/>ต้องการถอน: <b>${fmt(amount)} ฿</b><br/>ดำเนินการต่อหรือไม่?`,
+      showCancelButton:true, confirmButtonText:'ดำเนินการ', cancelButtonText:'ยกเลิก'
+    });
+    if(!res.isConfirmed) return;
+  }
+
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+
+  try{
+    Swal.fire({title:'กำลังบันทึก...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('addTransaction', { code, name:s.name, date, time, type, amount, note });
+    $('txAmount').value=''; $('txNote').value='';
+    await loadData(true);
+    Swal.fire({icon:'success',title:'บันทึกรายการสำเร็จ',timer:1500,showConfirmButton:false});
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+/* =========================================================================
+   SEARCH
+   ========================================================================= */
+function searchTx(){
+  const qn = ($('qName').value||'').toLowerCase().trim();
+  const qf = $('qFrom').value;
+  const qt = $('qTo').value;
+  const qty= $('qType').value;
+  const list = STATE.transactions.filter(t => {
+    if(qn && !(t.name||'').toLowerCase().includes(qn)) return false;
+    if(qf && (t.date||'') < qf) return false;
+    if(qt && (t.date||'') > qt) return false;
+    if(qty && t.type !== qty) return false;
+    return true;
+  });
+  renderTransactions(list);
+}
+function clearSearch(){
+  $('qName').value=''; $('qFrom').value=''; $('qTo').value=''; $('qType').value='';
+  renderTransactions(STATE.transactions);
+}
+
+/* =========================================================================
+   HISTORY POPUP
+   ========================================================================= */
+function showHistory(code){
+  const s = STATE.students.find(x=>x.code===code);
+  if(!s) return;
+  const list = STATE.transactions.filter(t=>t.code===code)
+    .sort((a,b)=>{
+      const ka = (a.date||'')+' '+(a.time||'');
+      const kb = (b.date||'')+' '+(b.time||'');
+      return kb.localeCompare(ka);
+    });
+  let dep=0, wd=0;
+  list.forEach(t=>{ if(t.type==='ฝาก') dep+=Number(t.amount)||0; else wd+=Number(t.amount)||0; });
+
+  const rows = list.length
+    ? list.map(t=>`
+        <tr>
+          <td>${t.date||''}</td>
+          <td>${t.time||''}</td>
+          <td><span class="${t.type==='ฝาก'?'text-emerald-600':'text-rose-600'} font-semibold">${t.type}</span></td>
+          <td class="text-right ${t.type==='ฝาก'?'text-emerald-600':'text-rose-600'}">${t.type==='ฝาก'?'+':'-'}${fmt(t.amount)}</td>
+          <td class="text-right font-semibold">${fmt(t.balance)}</td>
+          <td class="text-slate-500">${t.note||''}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="6" class="text-center text-slate-400 py-6">ยังไม่มีรายการ</td></tr>`;
+
+  Swal.fire({
+    width: 900,
+    title: `📊 ประวัติ - ${s.name} (${s.code})`,
+    html: `
+      <div class="text-left text-sm">
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+            <div class="text-xs text-emerald-700">ยอดฝากรวม</div>
+            <div class="text-lg font-bold text-emerald-700">${fmt(dep)} ฿</div>
+          </div>
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200">
+            <div class="text-xs text-rose-700">ยอดถอนรวม</div>
+            <div class="text-lg font-bold text-rose-700">${fmt(wd)} ฿</div>
+          </div>
+          <div class="p-3 rounded-xl bg-blue-50 border border-blue-200">
+            <div class="text-xs text-blue-700">ยอดคงเหลือ</div>
+            <div class="text-lg font-bold text-blue-700">${fmt(s.balance)} ฿</div>
+          </div>
+        </div>
+        <div style="max-height:380px; overflow:auto;" class="rounded-xl border border-slate-200">
+          <table class="tbl w-full text-sm">
+            <thead><tr><th>วันที่</th><th>เวลา</th><th>ประเภท</th><th class="text-right">จำนวน</th><th class="text-right">ยอดคงเหลือ</th><th>หมายเหตุ</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    `,
+    showConfirmButton:true, confirmButtonText:'ปิด', confirmButtonColor:'#3a5dff'
+  });
+}
+
+/* =========================================================================
+   EXPORT PDF / XLSX
+   ========================================================================= */
+function exportPDF(){
+  if(STATE.students.length===0){ Swal.fire({icon:'info',title:'ยังไม่มีข้อมูล'}); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt' });
+
+  doc.setFontSize(16);
+  doc.text('Student Deposit-Withdraw Report', 40, 40);
+  doc.setFontSize(10);
+  doc.text('Generated: ' + new Date().toLocaleString('en-US'), 40, 58);
+
+  // ตารางนักเรียน
+  doc.autoTable({
+    startY: 80,
+    head: [['No.', 'Code', 'Name', 'Class', 'Balance']],
+    body: [...STATE.students]
+      .sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
+      .map(s=>[s.no||'', s.code||'', s.name||'', s.class||'', fmt(s.balance)]),
+    styles:{ fontSize:9 },
+    headStyles:{ fillColor:[58,93,255] }
+  });
+
+  // ตารางรายการ
+  const txY = doc.lastAutoTable.finalY + 20;
+  doc.setFontSize(12);
+  doc.text('Transactions', 40, txY);
+  doc.autoTable({
+    startY: txY + 8,
+    head: [['Date','Time','Name','Type','Amount','Balance','Note']],
+    body: [...STATE.transactions]
+      .sort((a,b)=>((b.date||'')+' '+(b.time||'')).localeCompare((a.date||'')+' '+(a.time||'')))
+      .map(t=>[t.date||'', t.time||'', t.name||'', t.type||'', fmt(t.amount), fmt(t.balance), t.note||'']),
+    styles:{ fontSize:8 },
+    headStyles:{ fillColor:[16,185,129] }
+  });
+
+  doc.save('classroom-finance-' + todayISO() + '.pdf');
+  toast('success','ดาวน์โหลด PDF สำเร็จ');
+}
+
+function exportXLSX(){
+  if(STATE.students.length===0){ Swal.fire({icon:'info',title:'ยังไม่มีข้อมูล'}); return; }
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(
+    [...STATE.students].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
+      .map(s=>({ 'เลขที่':s.no, 'รหัส':s.code, 'ชื่อ-นามสกุล':s.name, 'ชั้น':s.class, 'ยอดคงเหลือ':Number(s.balance)||0 }))
+  );
+  XLSX.utils.book_append_sheet(wb, ws1, 'นักเรียน');
+
+  const ws2 = XLSX.utils.json_to_sheet(
+    [...STATE.transactions].sort((a,b)=>((a.date||'')+' '+(a.time||'')).localeCompare((b.date||'')+' '+(b.time||'')))
+      .map(t=>({ 'วันที่':t.date, 'เวลา':t.time, 'รหัส':t.code, 'ชื่อ':t.name, 'ประเภท':t.type, 'จำนวน':Number(t.amount)||0, 'ยอดคงเหลือ':Number(t.balance)||0, 'หมายเหตุ':t.note }))
+  );
+  XLSX.utils.book_append_sheet(wb, ws2, 'รายการ');
+
+  XLSX.writeFile(wb, 'classroom-finance-' + todayISO() + '.xlsx');
+  toast('success','ดาวน์โหลด Excel สำเร็จ');
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+function init(){
+  $('txDate').value = todayISO();
+  // URL config
+  $('btnSaveUrl').addEventListener('click', ()=>{
+    const v = $('gasUrl').value.trim();
+    if(!v){ Swal.fire({icon:'warning',title:'กรุณาวาง URL'}); return; }
+    STATE.gasUrl = v;
+    toast('success','บันทึก URL แล้ว');
+    testConnection();
+  });
+
+  $('btnTestConn').addEventListener('click', testConnection);
+  $('btnLoadData').addEventListener('click', ()=>loadData(false));
+  $('btnExportPDF').addEventListener('click', exportPDF);
+  $('btnExportXLSX').addEventListener('click', exportXLSX);
+
+  $('adminLoginBtn').addEventListener('click', adminLogin);
+  $('adminLogoutBtn').addEventListener('click', adminLogout);
+
+  $('btnAddStudent').addEventListener('click', addStudent);
+  $('btnSaveTx').addEventListener('click', saveTransaction);
+  $('txStudent').addEventListener('change', updateCurrentBalance);
+
+  $('studentSearch').addEventListener('input', ()=>{ STATE.shownLimit=20; renderStudents(); });
+  $('btnShowMore').addEventListener('click', ()=>{ STATE.shownLimit = Math.min(STATE.shownLimit+20, 100); renderStudents(); });
+
+  $('btnSearch').addEventListener('click', searchTx);
+  $('btnClearSearch').addEventListener('click', clearSearch);
+  $('btnShowAll').addEventListener('click', ()=>renderTransactions(STATE.transactions));
+  // realtime search
+  ['qName','qFrom','qTo','qType'].forEach(id=> $(id).addEventListener('input', searchTx));
+
+  setConnStatus('offline','ยังไม่ได้เชื่อมต่อ');
+  $('syncFresh').textContent = '⚠️ ยังไม่ได้โหลด';
+  $('syncSheet').textContent = '⚠️ ยังไม่ได้เชื่อมต่อ';
+  $('syncTime').textContent = '—';
+}
+window.addEventListener('DOMContentLoaded', init);
+
+// expose for inline handlers
+window.showHistory = showHistory;
+window.deleteStudent = deleteStudent;
+</script>
+</body>
+</html>
