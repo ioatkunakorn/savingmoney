@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>💰 ระบบฝาก-ถอนเงิน ห้องเรียน</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Sarabun', 'sans-serif'] },
+        colors: {
+          ink: { 50:'#f8fafc', 100:'#f1f5f9', 200:'#e2e8f0', 300:'#cbd5e1',
+                 400:'#94a3b8', 500:'#64748b', 600:'#475569', 700:'#334155',
+                 800:'#1e293b', 900:'#0f172a' },
+          accent: { DEFAULT:'#0d9488', 50:'#f0fdfa', 100:'#ccfbf1',
+                    500:'#14b8a6', 600:'#0d9488', 700:'#0f766e' }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { font-family:'Sarabun', sans-serif; background:#f8fafc; color:#0f172a; }
+  .input { width:100%; padding:.55rem .75rem; border-radius:.6rem; border:1px solid #e2e8f0; background:#fff; transition:.15s; }
+  .input:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.15); }
+  .btn { padding:.55rem 1rem; border-radius:.6rem; font-weight:600; transition:.15s; display:inline-flex; align-items:center; gap:.4rem; }
+  .btn-primary { background:#0d9488; color:#fff; }
+  .btn-primary:hover { background:#0f766e; }
+  .btn-dark { background:#1e293b; color:#fff; }
+  .btn-dark:hover { background:#0f172a; }
+  .btn-ghost { background:#f1f5f9; color:#334155; }
+  .btn-ghost:hover { background:#e2e8f0; }
+  .btn-danger { background:#fee2e2; color:#b91c1c; }
+  .btn-danger:hover { background:#fecaca; }
+  .label { font-size:.75rem; font-weight:600; color:#475569; margin-bottom:.25rem; display:block; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:.85rem; }
+
+  .tab { padding:.7rem 1rem; font-weight:600; color:#64748b; border-bottom:2px solid transparent;
+         cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap;
+         background:transparent; border-top:none; border-left:none; border-right:none; }
+  .tab:hover { color:#0f172a; }
+  .tab.active { color:#0d9488; border-bottom-color:#0d9488; }
+  .panel { display:none; }
+  .panel.active { display:block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+
+  .scroll-area { max-height: 460px; overflow-y:auto; }
+  .scroll-area::-webkit-scrollbar { width:6px; height:6px; }
+  .scroll-area::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
+
+  table.tbl { width:100%; border-collapse:separate; border-spacing:0; }
+  table.tbl thead th { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+    color:#64748b; background:#f8fafc; padding:.6rem .75rem; text-align:left;
+    border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1; }
+  table.tbl tbody td { padding:.6rem .75rem; font-size:.875rem; border-bottom:1px solid #f1f5f9; }
+  table.tbl tbody tr:hover td { background:#f8fafc; }
+
+  .dot { width:.5rem; height:.5rem; border-radius:999px; display:inline-block; }
+  .dot-green { background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.2); }
+  .dot-red   { background:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,.2); }
+  .dot-amber { background:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.2); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .chip { display:inline-flex; align-items:center; gap:.25rem; padding:.15rem .55rem; border-radius:999px; font-size:.7rem; font-weight:600; }
+  .chip-dep { background:#d1fae5; color:#065f46; }
+  .chip-wd  { background:#fee2e2; color:#991b1b; }
+
+  .type-toggle { display:flex; background:#f1f5f9; padding:4px; border-radius:.6rem; gap:4px; }
+  .type-toggle input { display:none; }
+  .type-toggle label { flex:1; text-align:center; padding:.45rem .75rem; border-radius:.45rem; cursor:pointer; font-weight:600; font-size:.875rem; color:#64748b; transition:.15s; }
+  .type-toggle input:checked + label.dep { background:#10b981; color:#fff; }
+  .type-toggle input:checked + label.wd  { background:#ef4444; color:#fff; }
+
+  .qbtn { padding:.4rem .7rem; border:1px solid #e2e8f0; border-radius:.5rem; background:#fff; font-size:.8rem; font-weight:600; color:#475569; cursor:pointer; transition:.15s; }
+  .qbtn:hover { border-color:#0d9488; color:#0d9488; }
+
+  .admin-only { display:none; }
+  body.is-admin .admin-only { display:block; }
+
+  .stat-card { padding:1rem 1.25rem; border-radius:.85rem; border:1px solid #e2e8f0; background:#fff; }
+  .stat-value { font-size:1.5rem; font-weight:800; line-height:1.1; margin-top:.25rem; }
+  .stat-label { font-size:.75rem; color:#64748b; font-weight:600; }
+
+  .kbd { background:#f1f5f9; border:1px solid #e2e8f0; border-bottom-width:2px; padding:1px 6px; border-radius:.3rem; font-size:.7rem; font-family:monospace; color:#475569; }
+</style>
+</head>
+
+<body class="min-h-screen">
+
+<!-- HEADER -->
+<header class="bg-white border-b border-ink-200 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-lg bg-ink-900 text-white flex items-center justify-center text-lg">💰</div>
+      <div>
+        <h1 class="text-base font-bold leading-tight">ระบบฝาก-ถอนเงิน ห้องเรียน</h1>
+        <div id="connStatus" class="flex items-center gap-1.5 text-xs text-ink-500 mt-0.5">
+          <span class="dot dot-amber"></span><span id="connText">กำลังโหลด...</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btnReload" class="btn btn-ghost text-sm" title="โหลดข้อมูลใหม่">🔄</button>
+      <button id="btnSettings" class="btn btn-ghost text-sm" title="ตั้งค่า">⚙️</button>
+      <button id="adminLoginBtn" class="btn btn-dark text-sm">🔐 เข้าระบบ</button>
+      <button id="adminLogoutBtn" class="hidden btn btn-ghost text-sm">🚪 ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+  <!-- DASHBOARD -->
+  <section>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="stat-card">
+        <div class="stat-label">👥 นักเรียนทั้งหมด</div>
+        <div class="stat-value text-ink-900" id="dashStudents">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⬆️ ยอดฝากรวม</div>
+        <div class="stat-value text-emerald-600" id="dashDeposit">0 ฿</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⬇️ ยอดถอนรวม</div>
+        <div class="stat-value text-rose-600" id="dashWithdraw">0 ฿</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">💎 ยอดคงเหลือรวม</div>
+        <div class="stat-value text-accent-600" id="dashTotal">0 ฿</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABS -->
+  <section class="card">
+    <div class="border-b border-ink-200 overflow-x-auto">
+      <nav class="flex gap-1 px-2">
+        <button class="tab active" data-panel="record">💵 บันทึกฝาก-ถอน <span class="kbd ml-1">1</span></button>
+        <button class="tab" data-panel="students">👥 นักเรียน <span class="kbd ml-1">2</span></button>
+        <button class="tab" data-panel="history">📜 ประวัติ <span class="kbd ml-1">3</span></button>
+        <button class="tab" data-panel="add">➕ เพิ่มนักเรียน <span class="kbd ml-1">4</span></button>
+        <button class="tab" data-panel="chart">📊 กราฟ</button>
+      </nav>
+    </div>
+
+    <!-- TAB 1: บันทึกฝาก-ถอน -->
+    <div id="panel-record" class="panel active p-5">
+      <div class="admin-only" id="recordAdmin">
+        <div class="grid lg:grid-cols-3 gap-5">
+          <div class="lg:col-span-2 space-y-4">
+            <div>
+              <label class="label">นักเรียน <span class="text-rose-500">*</span></label>
+              <div class="relative">
+                <input id="txSearch" type="text" class="input pr-8" placeholder="🔍 พิมพ์ชื่อ / รหัส / เลขที่ เพื่อค้นหา..." autocomplete="off" />
+                <div id="txDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-ink-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+              </div>
+              <div id="txSelectedBox" class="hidden mt-2 p-3 rounded-lg bg-accent-50 border border-accent-100 flex items-center justify-between">
+                <div>
+                  <div class="text-xs text-ink-500">เลือก:</div>
+                  <div id="txSelectedName" class="font-bold text-ink-900"></div>
+                </div>
+                <div class="text-right">
+                  <div class="text-xs text-ink-500">ยอดคงเหลือ</div>
+                  <div id="txBalance" class="text-xl font-bold text-accent-700">0 ฿</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">ประเภท</label>
+                <div class="type-toggle">
+                  <input type="radio" name="txType" id="typeDep" value="ฝาก" checked />
+                  <label for="typeDep" class="dep">⬆️ ฝาก</label>
+                  <input type="radio" name="txType" id="typeWd" value="ถอน" />
+                  <label for="typeWd" class="wd">⬇️ ถอน</label>
+                </div>
+              </div>
+              <div>
+                <label class="label">วันที่</label>
+                <input id="txDate" type="date" class="input" />
+              </div>
+            </div>
+
+            <div>
+              <label class="label">จำนวนเงิน (บาท)</label>
+              <input id="txAmount" type="number" min="0" step="1" class="input text-lg font-bold" placeholder="0" />
+              <div class="flex gap-2 mt-2 flex-wrap">
+                <button type="button" class="qbtn" data-amt="10">+10</button>
+                <button type="button" class="qbtn" data-amt="20">+20</button>
+                <button type="button" class="qbtn" data-amt="50">+50</button>
+                <button type="button" class="qbtn" data-amt="100">+100</button>
+                <button type="button" class="qbtn" data-amt="500">+500</button>
+                <button type="button" class="qbtn" data-amt="1000">+1,000</button>
+                <button type="button" class="qbtn" data-amt="clear">ล้าง</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">หมายเหตุ <span class="text-ink-400 font-normal">(ไม่บังคับ)</span></label>
+              <input id="txNote" type="text" class="input" placeholder="เช่น เก็บค่าขนม" />
+            </div>
+
+            <button id="btnSaveTx" class="btn btn-primary w-full justify-center py-3 text-base">
+              💾 บันทึกรายการ <span class="kbd ml-2 bg-white/20 text-white border-white/30">Enter</span>
+            </button>
+          </div>
+
+          <div>
+            <h3 class="font-bold text-ink-800 mb-2 flex items-center gap-2">🕒 รายการล่าสุด</h3>
+            <div id="recentList" class="space-y-2 scroll-area pr-1">
+              <p class="text-sm text-ink-400 text-center py-6">ยังไม่มีรายการ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="recordLocked" class="text-center py-12">
+        <div class="text-5xl mb-3">🔒</div>
+        <h3 class="font-bold text-lg text-ink-800">เฉพาะแอดมินเท่านั้น</h3>
+        <p class="text-sm text-ink-500 mt-1">กรุณาเข้าสู่ระบบแอดมินเพื่อบันทึกรายการ</p>
+        <button onclick="document.getElementById('adminLoginBtn').click()" class="btn btn-dark mt-4">🔐 เข้าระบบแอดมิน</button>
+      </div>
+    </div>
+
+    <!-- TAB 2: นักเรียน -->
+    <div id="panel-students" class="panel p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div class="flex-1 min-w-[200px]">
+          <input id="studentSearch" type="text" class="input" placeholder="🔍 ค้นหา: ชื่อ / รหัส / ชั้น / เลขที่" />
+        </div>
+        <div class="text-sm text-ink-600">
+          แสดง <span id="shownCount" class="font-bold text-accent-700">0</span> /
+          <span id="totalCount" class="font-bold">0</span> คน
+        </div>
+      </div>
+
+      <div class="scroll-area rounded-lg border border-ink-200">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>รหัส</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>ชั้น</th>
+              <th class="text-right">ยอดคงเหลือ</th>
+              <th class="text-center">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="studentTable">
+            <tr><td colspan="6" class="text-center text-ink-400 py-8">โหลดข้อมูลจาก Google Sheet ก่อน</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-3 flex justify-center">
+        <button id="btnShowMore" class="hidden btn btn-ghost text-sm">⬇️ แสดงเพิ่ม</button>
+      </div>
+    </div>
+
+    <!-- TAB 3: ประวัติ -->
+    <div id="panel-history" class="panel p-5">
+      <div class="grid md:grid-cols-4 gap-3 mb-3">
+        <input id="qName" type="text" class="input" placeholder="ชื่อนักเรียน" />
+        <input id="qFrom" type="date" class="input" />
+        <input id="qTo" type="date" class="input" />
+        <select id="qType" class="input">
+          <option value="">ทุกประเภท</option>
+          <option value="ฝาก">ฝาก</option>
+          <option value="ถอน">ถอน</option>
+        </select>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button id="btnClearSearch" class="btn btn-ghost text-sm">🗑️ ล้าง</button>
+        <button id="btnShowAll" class="btn btn-dark text-sm">📋 แสดงทั้งหมด</button>
+        <div class="ml-auto flex gap-2">
+          <button id="btnExportPDF" class="btn btn-ghost text-sm">📄 PDF</button>
+          <button id="btnExportXLSX" class="btn btn-ghost text-sm">📊 Excel</button>
+        </div>
+      </div>
+
+      <div class="scroll-area rounded-lg border border-ink-200">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>วันที่</th><th>เวลา</th><th>ชื่อ</th><th>ประเภท</th>
+              <th class="text-right">จำนวน</th><th class="text-right">คงเหลือ</th><th>หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody id="txTable">
+            <tr><td colspan="7" class="text-center text-ink-400 py-8">ยังไม่มีรายการ</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: เพิ่มนักเรียน -->
+    <div id="panel-add" class="panel p-5">
+      <div class="admin-only max-w-2xl">
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="md:col-span-2">
+            <label class="label">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+            <input id="sName" type="text" class="input" placeholder="เช่น สมชาย ใจดี" />
+          </div>
+          <div>
+            <label class="label">รหัสนักเรียน <span class="text-rose-500">*</span></label>
+            <input id="sCode" type="text" class="input" placeholder="เช่น 12345" />
+          </div>
+          <div>
+            <label class="label">ชั้น <span class="text-rose-500">*</span></label>
+            <input id="sClass" type="text" class="input" placeholder="เช่น ม.4/1" />
+          </div>
+          <div>
+            <label class="label">เลขที่ <span class="text-rose-500">*</span></label>
+            <input id="sNo" type="number" min="1" class="input" placeholder="เช่น 12" />
+          </div>
+        </div>
+        <button id="btnAddStudent" class="btn btn-primary mt-4">➕ เพิ่มนักเรียน</button>
+      </div>
+      <div id="addLocked" class="text-center py-12">
+        <div class="text-5xl mb-3">🔒</div>
+        <h3 class="font-bold text-lg text-ink-800">เฉพาะแอดมินเท่านั้น</h3>
+        <button onclick="document.getElementById('adminLoginBtn').click()" class="btn btn-dark mt-4">🔐 เข้าระบบแอดมิน</button>
+      </div>
+    </div>
+
+    <!-- TAB 5: กราฟ -->
+    <div id="panel-chart" class="panel p-5">
+      <h3 class="font-bold text-ink-800 mb-3">📊 ยอดเงินคงเหลือของแต่ละนักเรียน</h3>
+      <div style="position:relative; height:420px;">
+        <canvas id="balanceChart"></canvas>
+      </div>
+
+      <h3 class="font-bold text-ink-800 mt-6 mb-2">🏆 จัดอันดับยอดคงเหลือ</h3>
+      <div class="scroll-area rounded-lg border border-ink-200">
+        <table class="tbl">
+          <thead><tr><th>อันดับ</th><th>ชื่อ-นามสกุล</th><th>ชั้น</th><th class="text-right">ยอดคงเหลือ</th></tr></thead>
+          <tbody id="rankTable">
+            <tr><td colspan="4" class="text-center text-ink-400 py-8">ยังไม่มีข้อมูล</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="text-xs text-ink-400 text-center pt-2">
+    💡 เคล็ดลับ: กดเลข <span class="kbd">1</span>–<span class="kbd">4</span> เพื่อสลับแท็บเร็ว ๆ
+    <span id="lastSyncInfo" class="ml-2"></span>
+  </p>
+
+</main>
+
+<footer class="border-t border-ink-200 bg-white py-4 mt-8">
+  <p class="text-center text-xs text-ink-500">© 2026 ระบบฝาก-ถอนเงิน | ผู้พัฒนา นายคุณาร นาสารีย์</p>
+</footer>
+
+<script>
+const STATE = {
+  gasUrl: '', isAdmin: false,
+  students: [], transactions: [],
+  selectedStudentCode: '',
+  shownLimit: 20, lastSync: null, chart: null
+};
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtShort = (n) => {
+  const v = Number(n)||0;
+  if (Math.abs(v) >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,'')+'K ฿';
+  return fmt(v)+' ฿';
+};
+const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+
+function setConnStatus(state, text){
+  const wrap = $('connStatus');
+  const cls = state==='online'?'dot-green':state==='offline'?'dot-red':'dot-amber';
+  wrap.innerHTML = `<span class="dot ${cls}"></span><span>${text}</span>`;
+}
+
+function toast(icon, title){
+  Swal.fire({ toast:true, position:'top-end', icon, title, showConfirmButton:false, timer:2000, timerProgressBar:true });
+}
+
+async function callGAS(action, payload={}){
+  if(!STATE.gasUrl) throw new Error('ยังไม่ได้ตั้งค่า Google Apps Script URL');
+  const res = await fetch(STATE.gasUrl, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload })
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'Unknown error');
+  return data.data;
+}
+
+async function testConnection(){
+  if(!STATE.gasUrl){ openSettings(); return; }
+  setConnStatus('loading','กำลังตรวจสอบ...');
+  try{
+    await callGAS('ping');
+    setConnStatus('online','เชื่อมต่อสำเร็จ');
+    toast('success','เชื่อมต่อสำเร็จ');
+  }catch(e){
+    setConnStatus('offline','ออฟไลน์');
+    Swal.fire({ icon:'error', title:'เชื่อมต่อล้มเหลว', text:e.message });
+  }
+}
+
+async function loadData(silent=false){
+  if(!STATE.gasUrl){ if(!silent) openSettings(); return; }
+  setConnStatus('loading','กำลังโหลด...');
+  try{
+    const data = await callGAS('getAll');
+    STATE.students = data.students || [];
+    STATE.transactions = data.transactions || [];
+    recomputeBalances();
+    STATE.lastSync = new Date();
+    renderAll();
+    setConnStatus('online','เชื่อมต่อ');
+    $('lastSyncInfo').textContent = ' | ซิงค์ล่าสุด: ' + STATE.lastSync.toLocaleTimeString('th-TH');
+    if(!silent) toast('success','โหลดข้อมูลสำเร็จ');
+  }catch(e){
+    setConnStatus('offline','ออฟไลน์');
+    if(!silent) Swal.fire({ icon:'error', title:'โหลดข้อมูลล้มเหลว', text:e.message });
+  }
+}
+
+function recomputeBalances(){
+  const map = {};
+  STATE.students.forEach(s => map[s.code] = 0);
+  const sorted = [...STATE.transactions].sort((a,b)=>((a.date||'')+' '+(a.time||'')).localeCompare((b.date||'')+' '+(b.time||'')));
+  sorted.forEach(t => {
+    if(!(t.code in map)) map[t.code] = 0;
+    const amt = Number(t.amount)||0;
+    if(t.type === 'ฝาก') map[t.code] += amt;
+    else if(t.type === 'ถอน') map[t.code] -= amt;
+    t.balance = map[t.code];
+  });
+  STATE.students.forEach(s => s.balance = map[s.code] || 0);
+}
+
+function renderAll(){
+  renderDashboard();
+  renderStudents();
+  renderTransactions(STATE.transactions);
+  renderRecent();
+  renderRanking();
+  renderChart();
+  updateSelectedBalance();
+}
+
+function renderDashboard(){
+  $('dashStudents').textContent = STATE.students.length;
+  let dep=0, wd=0;
+  STATE.transactions.forEach(t => {
+    const a = Number(t.amount)||0;
+    if(t.type==='ฝาก') dep += a; else if(t.type==='ถอน') wd += a;
+  });
+  $('dashDeposit').textContent = fmtShort(dep);
+  $('dashWithdraw').textContent = fmtShort(wd);
+  $('dashTotal').textContent = fmtShort(dep - wd);
+}
+
+function getFilteredStudents(){
+  const q = ($('studentSearch').value || '').trim().toLowerCase();
+  let list = [...STATE.students].sort((a,b)=> (Number(a.no)||0) - (Number(b.no)||0));
+  if(q){
+    list = list.filter(s =>
+      (s.name||'').toLowerCase().includes(q) ||
+      String(s.code||'').toLowerCase().includes(q) ||
+      (s.class||'').toLowerCase().includes(q) ||
+      String(s.no||'').includes(q)
+    );
+  }
+  return list;
+}
+
+function renderStudents(){
+  const list = getFilteredStudents();
+  const shown = list.slice(0, Math.min(STATE.shownLimit, 100));
+  $('totalCount').textContent = list.length;
+  $('shownCount').textContent = shown.length;
+
+  const tbody = $('studentTable');
+  if(shown.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-ink-400 py-8">ไม่พบนักเรียน</td></tr>`;
+  } else {
+    tbody.innerHTML = shown.map(s => {
+      const bal = Number(s.balance)||0;
+      const balCls = bal>=0 ? 'text-emerald-600' : 'text-rose-600';
+      return `
+        <tr>
+          <td class="font-semibold">${s.no||''}</td>
+          <td><code class="text-xs bg-ink-100 px-2 py-0.5 rounded">${s.code||''}</code></td>
+          <td class="font-medium">${s.name||''}</td>
+          <td class="text-ink-500">${s.class||''}</td>
+          <td class="text-right font-bold ${balCls}">${fmt(bal)} ฿</td>
+          <td class="text-center whitespace-nowrap">
+            <button class="btn btn-ghost text-xs py-1 px-2" onclick="showHistory('${s.code}')">📊</button>
+            ${STATE.isAdmin ? `<button class="btn btn-danger text-xs py-1 px-2 ml-1" onclick="deleteStudent('${s.code}')">🗑️</button>` : ''}
+          </td>
+        </tr>`;
+    }).join('');
+  }
+  $('btnShowMore').classList.toggle('hidden', list.length <= STATE.shownLimit || STATE.shownLimit >= 100);
+}
+
+function renderRecent(){
+  const list = [...STATE.transactions]
+    .sort((a,b)=> ((b.date||'')+' '+(b.time||'')).localeCompare((a.date||'')+' '+(a.time||'')))
+    .slice(0, 8);
+  const wrap = $('recentList');
+  if(list.length === 0){
+    wrap.innerHTML = `<p class="text-sm text-ink-400 text-center py-6">ยังไม่มีรายการ</p>`;
+    return;
+  }
+  wrap.innerHTML = list.map(t => {
+    const isDep = t.type==='ฝาก';
+    return `
+      <div class="p-2.5 rounded-lg border border-ink-100 hover:border-ink-200 bg-ink-50/50 transition flex items-center justify-between gap-2">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-semibold text-ink-800 truncate">${t.name||''}</div>
+          <div class="text-xs text-ink-500">${t.date||''} ${t.time||''}</div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-bold ${isDep?'text-emerald-600':'text-rose-600'}">${isDep?'+':'-'}${fmt(t.amount)}</div>
+          <span class="chip ${isDep?'chip-dep':'chip-wd'}">${t.type}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderTransactions(list){
+  const tbody = $('txTable');
+  if(!list || list.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-ink-400 py-8">ยังไม่มีรายการ</td></tr>`;
+    return;
+  }
+  const sorted = [...list].sort((a,b)=> ((b.date||'')+' '+(b.time||'')).localeCompare((a.date||'')+' '+(a.time||'')));
+  tbody.innerHTML = sorted.map(t => {
+    const isDep = t.type==='ฝาก';
+    return `
+      <tr>
+        <td>${t.date||''}</td>
+        <td class="text-ink-500">${t.time||''}</td>
+        <td class="font-medium">${t.name||''}</td>
+        <td><span class="chip ${isDep?'chip-dep':'chip-wd'}">${t.type}</span></td>
+        <td class="text-right font-bold ${isDep?'text-emerald-600':'text-rose-600'}">${isDep?'+':'-'}${fmt(t.amount)}</td>
+        <td class="text-right font-semibold">${fmt(t.balance)}</td>
+        <td class="text-ink-500 text-xs">${t.note||''}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderRanking(){
+  const sorted = [...STATE.students].sort((a,b)=> (Number(b.balance)||0) - (Number(a.balance)||0));
+  const tbody = $('rankTable');
+  if(sorted.length===0){
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-ink-400 py-8">ยังไม่มีข้อมูล</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map((s,i)=>{
+    const bal = Number(s.balance)||0;
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="text-ink-500">#${i+1}</span>`;
+    return `<tr>
+      <td class="font-bold">${medal}</td>
+      <td class="font-medium">${s.name||''}</td>
+      <td class="text-ink-500">${s.class||''}</td>
+      <td class="text-right font-bold ${bal>=0?'text-emerald-600':'text-rose-600'}">${fmt(bal)} ฿</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderChart(){
+  const ctx = document.getElementById('balanceChart');
+  if(!ctx) return;
+  const data = [...STATE.students].sort((a,b)=> (Number(b.balance)||0) - (Number(a.balance)||0));
+  const labels = data.map(s => s.name || s.code);
+  const values = data.map(s => Number(s.balance)||0);
+  const colors = values.map(v => v>=0 ? '#0d9488' : '#ef4444');
+  if(STATE.chart) STATE.chart.destroy();
+  STATE.chart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'ยอดคงเหลือ (บาท)', data:values, backgroundColor:colors, borderRadius:6 }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> ' ' + fmt(c.parsed.y) + ' ฿' }}},
+      scales:{
+        y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:'#f1f5f9' }},
+        x:{ ticks:{ maxRotation:60, minRotation:30, font:{size:10}}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+function setupStudentSearch(){
+  const input = $('txSearch');
+  const dd = $('txDropdown');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if(!q){ dd.classList.add('hidden'); return; }
+    const matches = STATE.students.filter(s =>
+      (s.name||'').toLowerCase().includes(q) ||
+      String(s.code).toLowerCase().includes(q) ||
+      (s.class||'').toLowerCase().includes(q) ||
+      String(s.no||'').includes(q)
+    ).slice(0, 8);
+    if(matches.length === 0){
+      dd.innerHTML = `<div class="p-3 text-sm text-ink-400 text-center">ไม่พบนักเรียน</div>`;
+    } else {
+      dd.innerHTML = matches.map(s => `
+        <button type="button" data-code="${s.code}" class="w-full text-left px-3 py-2 hover:bg-accent-50 border-b border-ink-100 last:border-0">
+          <div class="font-semibold text-sm">เลขที่ ${s.no||'-'} | ${s.name}</div>
+          <div class="text-xs text-ink-500">${s.class||''} • รหัส ${s.code} • คงเหลือ ${fmt(s.balance)} ฿</div>
+        </button>
+      `).join('');
+      dd.querySelectorAll('button').forEach(b => b.addEventListener('click', () => selectStudent(b.dataset.code)));
+    }
+    dd.classList.remove('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if(!input.contains(e.target) && !dd.contains(e.target)) dd.classList.add('hidden');
+  });
+}
+
+function selectStudent(code){
+  STATE.selectedStudentCode = code;
+  const s = STATE.students.find(x => x.code === code);
+  if(!s) return;
+  $('txSearch').value = '';
+  $('txDropdown').classList.add('hidden');
+  $('txSelectedBox').classList.remove('hidden');
+  $('txSelectedName').textContent = `${s.name} (เลขที่ ${s.no||'-'} • ${s.class||''})`;
+  updateSelectedBalance();
+  $('txAmount').focus();
+}
+
+function updateSelectedBalance(){
+  const s = STATE.students.find(x => x.code === STATE.selectedStudentCode);
+  if(!s){ $('txSelectedBox').classList.add('hidden'); return; }
+  const bal = Number(s.balance)||0;
+  $('txBalance').textContent = fmt(bal) + ' ฿';
+  $('txBalance').className = 'text-xl font-bold ' + (bal>=0?'text-accent-700':'text-rose-600');
+}
+
+async function adminLogin(){
+  const { value: v } = await Swal.fire({
+    title: '🔐 เข้าระบบแอดมิน',
+    html: `<input id="swal-u" class="swal2-input" placeholder="Username" autocomplete="off">
+           <input id="swal-p" type="password" class="swal2-input" placeholder="Password">`,
+    focusConfirm:false, confirmButtonText:'เข้าระบบ', cancelButtonText:'ยกเลิก',
+    showCancelButton:true, confirmButtonColor:'#0d9488',
+    preConfirm: () => ({ user: document.getElementById('swal-u').value, pass: document.getElementById('swal-p').value })
+  });
+  if(!v) return;
+  if(v.user==='admin' && v.pass==='1234'){
+    STATE.isAdmin = true;
+    document.body.classList.add('is-admin');
+    $('adminLoginBtn').classList.add('hidden');
+    $('adminLogoutBtn').classList.remove('hidden');
+    $('recordLocked').classList.add('hidden');
+    $('recordAdmin').style.display = 'block';
+    $('addLocked').classList.add('hidden');
+    renderStudents();
+    toast('success','เข้าระบบสำเร็จ');
+  } else {
+    Swal.fire({ icon:'error', title:'ชื่อผู้ใช้/รหัสผ่านไม่ถูกต้อง' });
+  }
+}
+
+function adminLogout(){
+  STATE.isAdmin = false;
+  document.body.classList.remove('is-admin');
+  $('adminLoginBtn').classList.remove('hidden');
+  $('adminLogoutBtn').classList.add('hidden');
+  $('recordLocked').classList.remove('hidden');
+  $('recordAdmin').style.display = 'none';
+  $('addLocked').classList.remove('hidden');
+  renderStudents();
+  toast('info','ออกจากระบบแล้ว');
+}
+
+async function addStudent(){
+  if(!STATE.isAdmin) return;
+  const name = $('sName').value.trim(), code = $('sCode').value.trim();
+  const cls = $('sClass').value.trim(), no = $('sNo').value.trim();
+  if(!name||!code||!cls||!no){ Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ'}); return; }
+  if(STATE.students.some(s=>String(s.code)===String(code))){
+    Swal.fire({icon:'error',title:'รหัสนักเรียนซ้ำ',text:`มีรหัส ${code} อยู่แล้ว`}); return;
+  }
+  try{
+    Swal.fire({title:'กำลังบันทึก...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('addStudent', { code, name, class:cls, no: Number(no) });
+    ['sName','sCode','sClass','sNo'].forEach(id=>$(id).value='');
+    await loadData(true);
+    Swal.fire({icon:'success',title:'เพิ่มสำเร็จ',timer:1200,showConfirmButton:false});
+    $('sName').focus();
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+async function deleteStudent(code){
+  if(!STATE.isAdmin) return;
+  const s = STATE.students.find(x=>x.code===code);
+  if(!s) return;
+  const res = await Swal.fire({
+    icon:'warning', title:'ยืนยันการลบ?',
+    html:`ลบนักเรียน <b>${s.name}</b> (${code})<br/><span class="text-rose-600 text-sm">รายการของนักเรียนคนนี้จะถูกลบทั้งหมด</span>`,
+    showCancelButton:true, confirmButtonText:'ลบ', cancelButtonText:'ยกเลิก', confirmButtonColor:'#ef4444'
+  });
+  if(!res.isConfirmed) return;
+  try{
+    Swal.fire({title:'กำลังลบ...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('deleteStudent', { code });
+    await loadData(true);
+    Swal.fire({icon:'success',title:'ลบสำเร็จ',timer:1200,showConfirmButton:false});
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+async function saveTransaction(){
+  if(!STATE.isAdmin) return;
+  const code = STATE.selectedStudentCode;
+  const type = document.querySelector('input[name="txType"]:checked').value;
+  const amount = Number($('txAmount').value);
+  const note = $('txNote').value.trim();
+  const date = $('txDate').value || todayISO();
+  if(!code){ Swal.fire({icon:'warning',title:'กรุณาเลือกนักเรียน'}); $('txSearch').focus(); return; }
+  if(!amount || amount<=0){ Swal.fire({icon:'warning',title:'จำนวนเงินไม่ถูกต้อง'}); $('txAmount').focus(); return; }
+
+  const s = STATE.students.find(x=>x.code===code);
+  if(type==='ถอน' && Number(s.balance) < amount){
+    const res = await Swal.fire({
+      icon:'warning', title:'ยอดเงินไม่พอ',
+      html:`คงเหลือ: <b>${fmt(s.balance)} ฿</b><br/>ต้องการถอน: <b>${fmt(amount)} ฿</b>`,
+      showCancelButton:true, confirmButtonText:'ดำเนินการต่อ', cancelButtonText:'ยกเลิก'
+    });
+    if(!res.isConfirmed) return;
+  }
+
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+
+  try{
+    Swal.fire({title:'กำลังบันทึก...',didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+    await callGAS('addTransaction', { code, name:s.name, date, time, type, amount, note });
+    $('txAmount').value=''; $('txNote').value='';
+    await loadData(true);
+    Swal.fire({icon:'success',title:`${type} ${fmt(amount)} ฿ สำเร็จ`,timer:1500,showConfirmButton:false});
+    $('txSearch').focus();
+  }catch(e){ Swal.fire({icon:'error',title:'ผิดพลาด',text:e.message}); }
+}
+
+function searchTx(){
+  const qn = ($('qName').value||'').toLowerCase().trim();
+  const qf = $('qFrom').value, qt = $('qTo').value, qty= $('qType').value;
+  const list = STATE.transactions.filter(t => {
+    if(qn && !(t.name||'').toLowerCase().includes(qn)) return false;
+    if(qf && (t.date||'') < qf) return false;
+    if(qt && (t.date||'') > qt) return false;
+    if(qty && t.type !== qty) return false;
+    return true;
+  });
+  renderTransactions(list);
+}
+function clearSearch(){
+  ['qName','qFrom','qTo'].forEach(id=>$(id).value='');
+  $('qType').value='';
+  renderTransactions(STATE.transactions);
+}
+
+function showHistory(code){
+  const s = STATE.students.find(x=>x.code===code);
+  if(!s) return;
+  const list = STATE.transactions.filter(t=>t.code===code)
+    .sort((a,b)=> ((b.date||'')+' '+(b.time||'')).localeCompare((a.date||'')+' '+(a.time||'')));
+  let dep=0, wd=0;
+  list.forEach(t=>{ if(t.type==='ฝาก') dep+=Number(t.amount)||0; else wd+=Number(t.amount)||0; });
+
+  const rows = list.length
+    ? list.map(t=>`<tr>
+        <td>${t.date||''}</td><td>${t.time||''}</td>
+        <td><span class="chip ${t.type==='ฝาก'?'chip-dep':'chip-wd'}">${t.type}</span></td>
+        <td style="text-align:right" class="${t.type==='ฝาก'?'text-emerald-600':'text-rose-600'} font-bold">${t.type==='ฝาก'?'+':'-'}${fmt(t.amount)}</td>
+        <td style="text-align:right" class="font-semibold">${fmt(t.balance)}</td>
+        <td class="text-ink-500 text-xs">${t.note||''}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" class="text-center text-ink-400 py-6">ยังไม่มีรายการ</td></tr>`;
+
+  Swal.fire({
+    width: 900,
+    title: `📊 ${s.name} <span style="color:#64748b;font-size:14px;font-weight:400">(${s.code})</span>`,
+    html: `
+      <div class="text-left text-sm">
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200">
+            <div class="text-xs text-emerald-700">ฝากรวม</div>
+            <div class="text-base font-bold text-emerald-700">${fmt(dep)} ฿</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-200">
+            <div class="text-xs text-rose-700">ถอนรวม</div>
+            <div class="text-base font-bold text-rose-700">${fmt(wd)} ฿</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-accent-50 border border-accent-100">
+            <div class="text-xs text-accent-700">คงเหลือ</div>
+            <div class="text-base font-bold text-accent-700">${fmt(s.balance)} ฿</div>
+          </div>
+        </div>
+        <div style="max-height:380px; overflow:auto;" class="rounded-lg border border-ink-200">
+          <table class="tbl">
+            <thead><tr><th>วันที่</th><th>เวลา</th><th>ประเภท</th><th style="text-align:right">จำนวน</th><th style="text-align:right">คงเหลือ</th><th>หมายเหตุ</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`,
+    confirmButtonText:'ปิด', confirmButtonColor:'#0d9488'
+  });
+}
+
+function exportPDF(){
+  if(STATE.students.length===0){ Swal.fire({icon:'info',title:'ยังไม่มีข้อมูล'}); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt' });
+  doc.setFontSize(16); doc.text('Classroom Deposit-Withdraw Report', 40, 40);
+  doc.setFontSize(10); doc.text('Generated: ' + new Date().toLocaleString('en-US'), 40, 58);
+  doc.autoTable({
+    startY: 80, head: [['No.','Code','Name','Class','Balance']],
+    body: [...STATE.students].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
+      .map(s=>[s.no||'', s.code||'', s.name||'', s.class||'', fmt(s.balance)]),
+    styles:{ fontSize:9 }, headStyles:{ fillColor:[13,148,136] }
+  });
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 20,
+    head: [['Date','Time','Name','Type','Amount','Balance','Note']],
+    body: [...STATE.transactions].sort((a,b)=>((b.date||'')+' '+(b.time||'')).localeCompare((a.date||'')+' '+(a.time||'')))
+      .map(t=>[t.date||'', t.time||'', t.name||'', t.type||'', fmt(t.amount), fmt(t.balance), t.note||'']),
+    styles:{ fontSize:8 }, headStyles:{ fillColor:[30,41,59] }
+  });
+  doc.save('classroom-finance-' + todayISO() + '.pdf');
+  toast('success','ดาวน์โหลด PDF สำเร็จ');
+}
+
+function exportXLSX(){
+  if(STATE.students.length===0){ Swal.fire({icon:'info',title:'ยังไม่มีข้อมูล'}); return; }
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(
+    [...STATE.students].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0))
+      .map(s=>({ 'เลขที่':s.no, 'รหัส':s.code, 'ชื่อ-นามสกุล':s.name, 'ชั้น':s.class, 'ยอดคงเหลือ':Number(s.balance)||0 }))
+  );
+  XLSX.utils.book_append_sheet(wb, ws1, 'นักเรียน');
+  const ws2 = XLSX.utils.json_to_sheet(
+    [...STATE.transactions].sort((a,b)=>((a.date||'')+' '+(a.time||'')).localeCompare((b.date||'')+' '+(b.time||'')))
+      .map(t=>({ 'วันที่':t.date, 'เวลา':t.time, 'รหัส':t.code, 'ชื่อ':t.name, 'ประเภท':t.type, 'จำนวน':Number(t.amount)||0, 'ยอดคงเหลือ':Number(t.balance)||0, 'หมายเหตุ':t.note }))
+  );
+  XLSX.utils.book_append_sheet(wb, ws2, 'รายการ');
+  XLSX.writeFile(wb, 'classroom-finance-' + todayISO() + '.xlsx');
+  toast('success','ดาวน์โหลด Excel สำเร็จ');
+}
+
+function openSettings(){
+  Swal.fire({
+    title: '⚙️ ตั้งค่าระบบ',
+    html: `
+      <div style="text-align:left">
+        <label style="display:block;margin-bottom:.25rem;font-size:.75rem;font-weight:600;color:#475569">
+          Google Apps Script URL
+        </label>
+        <input id="swal-url" class="swal2-input" style="margin:0;width:100%" value="${STATE.gasUrl}" placeholder="https://script.google.com/macros/s/.../exec">
+        <p style="font-size:.75rem;color:#64748b;margin-top:.5rem">URL นี้จะถูกเก็บไว้ระหว่างใช้งาน</p>
+      </div>
+    `,
+    confirmButtonText:'บันทึก & ทดสอบ', cancelButtonText:'ยกเลิก',
+    showCancelButton:true, confirmButtonColor:'#0d9488',
+    preConfirm: () => document.getElementById('swal-url').value.trim()
+  }).then(r => {
+    if(r.isConfirmed && r.value){
+      STATE.gasUrl = r.value;
+      testConnection().then(()=>loadData(true));
+    }
+  });
+}
+
+function setupTabs(){
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.panel));
+  });
+}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.panel===name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+name));
+  if(name==='chart') setTimeout(renderChart, 50);
+  if(name==='record' && STATE.isAdmin) setTimeout(()=>$('txSearch').focus(), 100);
+}
+
+function setupKeyboard(){
+  document.addEventListener('keydown', (e) => {
+    if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
+      if(e.key==='Enter' && STATE.isAdmin && document.getElementById('panel-record').classList.contains('active')){
+        if(['txAmount','txNote'].includes(e.target.id)){ e.preventDefault(); saveTransaction(); }
+      }
+      return;
+    }
+    if(e.key==='1') switchTab('record');
+    else if(e.key==='2') switchTab('students');
+    else if(e.key==='3') switchTab('history');
+    else if(e.key==='4') switchTab('add');
+  });
+}
+
+function init(){
+  $('txDate').value = todayISO();
+
+  $('btnSettings').addEventListener('click', openSettings);
+  $('btnReload').addEventListener('click', ()=>loadData(false));
+  $('adminLoginBtn').addEventListener('click', adminLogin);
+  $('adminLogoutBtn').addEventListener('click', adminLogout);
+  $('btnAddStudent').addEventListener('click', addStudent);
+  $('btnSaveTx').addEventListener('click', saveTransaction);
+
+  $('studentSearch').addEventListener('input', ()=>{ STATE.shownLimit=20; renderStudents(); });
+  $('btnShowMore').addEventListener('click', ()=>{ STATE.shownLimit = Math.min(STATE.shownLimit+20, 100); renderStudents(); });
+
+  $('btnClearSearch').addEventListener('click', clearSearch);
+  $('btnShowAll').addEventListener('click', ()=>renderTransactions(STATE.transactions));
+  ['qName','qFrom','qTo','qType'].forEach(id=> $(id).addEventListener('input', searchTx));
+
+  $('btnExportPDF').addEventListener('click', exportPDF);
+  $('btnExportXLSX').addEventListener('click', exportXLSX);
+
+  document.querySelectorAll('.qbtn').forEach(b => {
+    b.addEventListener('click', () => {
+      const v = b.dataset.amt;
+      const input = $('txAmount');
+      if(v==='clear'){ input.value=''; return; }
+      input.value = (Number(input.value)||0) + Number(v);
+    });
+  });
+
+  setupStudentSearch();
+  setupTabs();
+  setupKeyboard();
+
+  setConnStatus('offline','ยังไม่ได้เชื่อมต่อ');
+  setTimeout(() => { if(!STATE.gasUrl) openSettings(); }, 500);
+}
+window.addEventListener('DOMContentLoaded', init);
+window.showHistory = showHistory;
+window.deleteStudent = deleteStudent;
+</script>
+</body>
+</html>
